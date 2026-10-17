@@ -1,4 +1,6 @@
-# Inference stack is pinned by the immutable base image in Dockerfile.
+# Gateway dependencies for CPU tests and native serving.
+# Full native GPU versions are in requirements-native-linux-py312.lock.
+# Dockerfile is retained only for the historical Lambda path.
 fastapi==0.116.1
 starlette==0.47.2
 pydantic==2.11.7
@@ -13,6 +15,6 @@ httpcore==1.0.9
 h11==0.16.0
 anyio==4.10.0
 sniffio==1.3.1
-idna==3.10
+idna==3.20
 certifi==2025.8.3
 PyYAML==6.0.2

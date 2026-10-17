@@ -179,3 +179,41 @@ def test_missing_jit_tool_fails_before_model_start(monkeypatch):
     monkeypatch.setattr(native.shutil, 'which', lambda name: None if name == 'ninja' else '/tools/'+name)
     with pytest.raises(RuntimeError, match='ninja'):
         native.validate_jit_tools()
+
+
+def test_analysis_and_complete_lock_changes_invalidate_dependency_fingerprint(tmp_path):
+    for name in native.DEPENDENCY_FILES:
+        (tmp_path/name).write_text('fixture==1\n')
+    first = native.dependency_fingerprint(tmp_path)
+    (tmp_path/'requirements-analysis.lock').write_text('fixture==2\n')
+    second = native.dependency_fingerprint(tmp_path)
+    assert second != first
+    (tmp_path/'requirements-native-linux-py312.lock').write_text('fixture==3\n')
+    assert native.dependency_fingerprint(tmp_path) != second
+
+
+def test_native_closure_rejects_pin_drift_missing_and_extra_packages(tmp_path, monkeypatch):
+    monkeypatch.setattr(native, 'STATE', tmp_path)
+    lock = tmp_path/'lock'
+    lock.write_text('idna==3.20\nninja==1.13.2\n')
+    current = {'idna': '3.20', 'ninja': '1.13.2'}
+    monkeypatch.setattr(native.subprocess, 'check_output', lambda *a, **kw: json.dumps(current))
+    verified = native.verify_native_packages('/python', lock)
+    assert verified['package_count'] == 2
+    assert 'lock_sha256' in json.loads((tmp_path/'native-dependencies.json').read_text())
+    for invalid in ({'idna': '3.10', 'ninja': '1.13.2'}, {'idna': '3.20'},
+                    {'idna': '3.20', 'ninja': '1.13.2', 'unexpected': '1'}):
+        current = invalid
+        with pytest.raises(RuntimeError, match='differs from lock'):
+            native.verify_native_packages('/python', lock)
+
+
+def test_direct_constraints_match_captured_native_closure():
+    def pins(name):
+        return {native.re.sub(r'[-_.]+', '-', line.split('==')[0]).lower(): line.split('==')[1]
+                for line in (ROOT/name).read_text().splitlines() if line and not line.startswith('#')}
+    full = pins('requirements-native-linux-py312.lock')
+    assert len(full) == 175
+    for name in native.DEPENDENCY_FILES[:-1]:
+        for package, version in pins(name).items():
+            assert full[package] == version, (name, package)

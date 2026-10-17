@@ -10,7 +10,7 @@
 
 ## 从干净 Daytona GPU Linux 启动
 
-前置边界：Linux x86_64、NVIDIA RTX 4090 驱动可用、Git、Python 3.12/venv、外网。`setup.sh` 在项目私有 `.venv` 安装依赖，不要求 Docker 或 systemd，不修改 GPU 驱动。若缺少与所选 Python 对应的 `Python.h` 或 C/C++ 编译器，setup 会使用非交互 sudo/apt 安装匹配的 Python 开发头文件及 build-essential；基础环境须允许此操作。引擎关键版本见 `requirements-runtime.lock`；可复用平台下载缓存，但项目配置与代码从指定 Git commit 重建。若平台提供已固定版本的引擎解释器，可以显式设置 `SGLANG_PYTHON=/path/to/python`，setup 会检查版本；网关仍使用私有 venv。干净安装和预置运行时必须分别记录，不能混称为同一种冷启动。历史 Lambda 路径保留在 `setup-lambda.sh`，不代表当前配置已在 A10 重测。
+前置边界：Linux x86_64、NVIDIA RTX 4090 驱动可用、Git、Python 3.12/venv、外网。`setup.sh` 在项目私有 `.venv` 安装依赖，不要求 Docker 或 systemd，不修改 GPU 驱动。若缺少与所选 Python 对应的 `Python.h` 或 C/C++ 编译器，setup 会使用非交互 sudo/apt 安装匹配的 Python 开发头文件及 build-essential；基础环境须允许此操作。引擎关键版本见 `requirements-runtime.lock`，完整 Linux/Python 3.12 包版本见 `requirements-native-linux-py312.lock`；默认一次安装网关、引擎和分析依赖，随后执行 pip check 与完整版本集合核对，复现边界见[运行时锁说明](docs/native-runtime-lock.md)；可复用平台下载缓存，但项目配置与代码从指定 Git commit 重建。若平台提供已固定版本的引擎解释器，可以显式设置 `SGLANG_PYTHON=/path/to/python`，setup 会检查版本；网关仍使用私有 venv。干净安装和预置运行时必须分别记录，不能混称为同一种冷启动。历史 Lambda 路径保留在 `setup-lambda.sh`，不代表当前配置已在 A10 重测。
 
 Triton / FlashInfer 即使已安装 wheel，也可能在第一次推理时 JIT 编译 Python 扩展，因此必须具备匹配解释器版本的 `Python.h` 和 C/C++ 编译工具。setup 只使用系统已有的官方 Ubuntu 软件源安装这些依赖，保留签名验证并跳过无关 CUDA 第三方源；网络超时 20 秒、重试 1 次，update/install 总时限分别为 180/240 秒。安装进度会显示在评测终端，失败会返回非零，避免网络问题无限占用 GPU。直接调用 `.venv/bin/python` 不会自动激活 PATH；setup 和实验入口会显式加入实际引擎解释器的 bin、网关 venv/bin 和 CUDA_HOME/bin，并检查 cc/c++、ninja、nvcc。工具链路径记录在 `.runtime/runtime.json`，无需手动 source activate。
 
@@ -88,9 +88,9 @@ SSE 一次事件可能包含多个 token；`event_gap_p95_ms` 表示流式事件
 ## CPU 测试
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.lock pytest==8.4.1 pytest-asyncio==1.1.0
-.venv/bin/python -m pytest -q
+python3 -m venv .venv-test
+.venv-test/bin/pip install -r requirements.lock pytest==8.4.1 pytest-asyncio==1.1.0
+.venv-test/bin/python -m pytest -q
 ```
 
 正式评测只通过平台“评测”显式触发，clone 指定完整 commit，再执行 setup 和独立测量。push/CI 不触发 GPU。参考实现不包含 Daytona、数据库、平台服务密钥。

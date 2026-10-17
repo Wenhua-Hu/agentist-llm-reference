@@ -1,4 +1,5 @@
-# Tested runtime contract. Wheel/download caches are optional optimizations.
+# Key runtime constraints; the complete Linux/Python 3.12 package closure is
+# in requirements-native-linux-py312.lock. Download caches are optional.
 sglang==0.5.9
 torch==2.9.1
 transformers==4.57.1

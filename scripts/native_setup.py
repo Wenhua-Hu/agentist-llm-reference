@@ -8,6 +8,7 @@ import hashlib
 import importlib.metadata
 import json
 import os
+import re
 from pathlib import Path
 import signal
 import shutil
@@ -161,6 +162,43 @@ def validate_versions(actual):
         raise RuntimeError('Runtime version mismatch: ' + '; '.join(bad))
 
 
+DEPENDENCY_FILES = ('requirements.lock', 'requirements-runtime.lock',
+                    'requirements-analysis.lock', 'requirements-native-linux-py312.lock')
+
+
+def dependency_fingerprint(root=ROOT):
+    digest = hashlib.sha256()
+    for name in DEPENDENCY_FILES:
+        digest.update(name.encode() + b'\0' + (root / name).read_bytes() + b'\0')
+    return digest.hexdigest()
+
+
+def verify_native_packages(python, lock_path=ROOT / 'requirements-native-linux-py312.lock'):
+    """Capture/verify distribution metadata, never URLs, auth configuration, or env."""
+    def canonical(name):
+        return re.sub(r'[-_.]+', '-', name).lower()
+    expected = {}
+    for line in lock_path.read_text().splitlines():
+        if not line or line.startswith('#'):
+            continue
+        name, version = line.split('==')
+        expected[canonical(name)] = version
+    actual = json.loads(subprocess.check_output([python, '-c',
+        'import importlib.metadata as m,json,re;'
+        'print(json.dumps({re.sub(r"[-_.]+","-",d.metadata["Name"]).lower():d.version '
+        'for d in m.distributions()}))'], text=True))
+    mismatches = [name for name, version in expected.items() if actual.get(name) != version]
+    extras = sorted(set(actual) - set(expected))
+    if mismatches or extras:
+        raise RuntimeError('Native dependency closure differs from lock: '
+                           + ', '.join(sorted(mismatches) + extras)
+                           + '; rebuild the project venv from the declared lock')
+    manifest = {'packages': actual, 'package_count': len(actual),
+                'lock_sha256': hashlib.sha256(lock_path.read_bytes()).hexdigest()}
+    (STATE / 'native-dependencies.json').write_text(json.dumps(manifest, indent=2))
+    return manifest
+
+
 def healthy(host, port):
     try:
         with urllib.request.urlopen(f'http://{host}:{port}/healthz', timeout=2) as response:
@@ -221,8 +259,7 @@ def main():
             digest.update((name + '=' + os.environ.get(name, '') + '\n').encode())
         for path in sorted((ROOT / 'configs').glob('*.yaml')):
             digest.update(path.read_bytes())
-        for path in (ROOT / 'requirements.lock', ROOT / 'requirements-runtime.lock'):
-            digest.update(path.read_bytes())
+        digest.update(dependency_fingerprint().encode())
         fingerprint = digest.hexdigest()
         record = STATE / 'process.json'
         if record.exists():
@@ -236,12 +273,22 @@ def main():
         gateway_python = ROOT / '.venv' / 'bin' / 'python'
         if not gateway_python.exists():
             run([sys.executable, '-m', 'venv', ROOT / '.venv'])
-        run([gateway_python, '-m', 'pip', 'install', '--disable-pip-version-check', '-r', 'requirements.lock'])
         engine_python = os.environ.get('SGLANG_PYTHON')
-        if not engine_python:
+        external_runtime = bool(engine_python)
+        # Resolve gateway, engine and analysis together; later installs must not
+        # silently upgrade an earlier contract pin (e.g. idna).
+        requirements = ('requirements.lock',) if external_runtime else DEPENDENCY_FILES
+        install = [gateway_python, '-m', 'pip', 'install', '--disable-pip-version-check']
+        for name in requirements:
+            install += ['-r', name]
+        run(install)
+        run([gateway_python, '-m', 'pip', 'check'])
+        dependency_manifest = None
+        if not external_runtime:
             engine_python = str(gateway_python)
-            run([engine_python, '-m', 'pip', 'install', '--disable-pip-version-check',
-                 '-r', 'requirements-runtime.lock', '-r', 'requirements-analysis.lock'])
+            dependency_manifest = verify_native_packages(engine_python)
+        else:
+            run([engine_python, '-m', 'pip', 'check'])
         runtime_environment = configure_runtime_environment(engine_python, gateway_python)
         ensure_build_prerequisites(engine_python)
         jit_tools = validate_jit_tools()
@@ -253,7 +300,9 @@ def main():
         os.environ['SGLANG_PYTHON'] = engine_python
         (STATE / 'runtime.json').write_text(json.dumps({'engine_python': engine_python,
             'gateway_python': str(gateway_python), 'versions': versions, 'mode': 'native',
-            **runtime_environment, 'jit_tools': jit_tools}, indent=2))
+            **runtime_environment, 'jit_tools': jit_tools,
+            'native_lock_applied': not external_runtime,
+            'native_lock_sha256': dependency_manifest['lock_sha256'] if dependency_manifest else None}, indent=2))
         logs = {STATE/name: {'offset': (STATE/name).stat().st_size if (STATE/name).exists() else 0,
                              'pending': b''}
                 for name in ('supervisor.log', 'engine.log', 'gateway.log')}
