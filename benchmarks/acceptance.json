@@ -1,0 +1,27 @@
+{
+  "schema": "llm-serving-acceptance/1",
+  "version": "daytona-4090-v1-pending-calibration",
+  "status": "uncalibrated",
+  "hardware_contains": "RTX 4090",
+  "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+  "model_revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+  "dtype": "bfloat16",
+  "workload_version": "typed-json-exact-input/1",
+  "concurrencies": [1, 4, 8, 16],
+  "repeats": 3,
+  "requests_per_repeat": 16,
+  "deadline_seconds": 45,
+  "warmup_requests": 2,
+  "workloads": [
+    {"id": "short", "input_tokens": 512, "records": 1, "max_output_tokens": 96},
+    {"id": "long", "input_tokens": 1024, "records": 8, "max_output_tokens": 384}
+  ],
+  "targets": null,
+  "calibration": null,
+  "notes": [
+    "No points until targets and real calibration evidence are published. Null thresholds are never a pass.",
+    "Timing uses trusted client clock. TTFT is time to first non-empty text event; TPOT uses independently retokenized visible text. Event gaps are not exact per-token ITL.",
+    "Per-run inputs are fresh; only shape warmup is reused. Both profiles get identical measured prompts. Cache hits are permitted and must be reported separately in cache-specific tests.",
+    "Model, hardware, dtype, exact chat-template input lengths and maximum output lengths are part of the acceptance contract. Output length is model-determined and recorded; correctness is a prerequisite for counting useful throughput."
+  ]
+}

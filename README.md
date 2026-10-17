@@ -58,6 +58,31 @@ bash setup.sh # 显式恢复服务
 
 实验失败返回非零并保存 failure.json；不会静默换后端。完整记录 manifest/raw/summary/SVG，profiler 大文件在实验目录生成，发布时附 SHA256。优化服务使用 FlashInfer；SDPA FlashAttention 是独立机制实验，不宣称二者是同一个实现。服务性能必须通过外部请求实测。
 
+## 对最终服务运行公开自测
+
+这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。当前 `benchmarks/acceptance.json` 标注未完成标定，门槛为空时绝不算通过；标定完成后会更新为固定验收版本。
+
+```bash
+# 默认 setup 的项目 venv 已包含所需依赖；API_KEY 与服务启动时相同。
+BENCH_PROFILE=baseline bash setup.sh
+.venv/bin/python -m benchmarks.serving_benchmark \
+  --base-url http://127.0.0.1:8000 --profile baseline \
+  --seed 20261017 --out results/self-test/run-1
+BENCH_PROFILE=optimized bash setup.sh
+.venv/bin/python -m benchmarks.serving_benchmark \
+  --base-url http://127.0.0.1:8000 --profile optimized \
+  --seed 20261017 --out results/self-test/run-1
+```
+
+每次新的比较使用新的 seed 和目录；同一轮两组 profile 使用相同 seed。工具先核对 `/info` 中的真实 profile、模型、revision、精度及 SGLang 引擎；不会把 baseline 误标为 optimized。若使用平台预置 `SGLANG_PYTHON`，可以使用该解释器运行自测。
+
+- `benchmarks/acceptance.json`：硬件、固定模型、负载、并发和标定后的性能门槛。
+- `benchmarks/serving_benchmark.py`：构造精确 512/1024 chat-template 输入 token 的短/长 JSON 任务，运行并发 1/4/8/16、三轮采样；校验答案的字段、类型和值；用固定 tokenizer 独立计数，不相信服务自报 token 数。
+- `benchmarks/measurement.py`：SSE 事件解析与分位数计算。
+- 输出 `*-serving-raw.jsonl` 保存逐请求结果，`*-serving-summary.json` 保存吞吐、TTFT/TPOT/E2E p95、成功率和正确率；有已标定 SLO 时同时给出 goodput。
+
+SSE 一次事件可能包含多个 token；`event_gap_p95_ms` 表示流式事件间隔，不冒充逐 token 的精确 ITL。公开自测脚本和输出都可被修改，因此正式分数只能由平台在干净环境独立运行后生成。
+
 ## CPU 测试
 
 ```bash
