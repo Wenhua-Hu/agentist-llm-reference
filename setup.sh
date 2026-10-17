@@ -13,6 +13,24 @@ if ! command -v docker >/dev/null; then
   sudo -n systemctl enable --now docker
 fi
 sudo -n docker info >/dev/null
+if ! sudo -n docker info --format '{{json .Runtimes}}' | python3 -c 'import json,sys;sys.exit(0 if "nvidia" in json.load(sys.stdin) else 1)'; then
+  # Dedicated, disposable VM only. Do not restart Docker on a shared host.
+  [[ -z "$(sudo -n docker ps -q)" ]] || { echo 'Cannot configure runtime while other containers run'; exit 1; }
+  if ! command -v nvidia-ctk >/dev/null; then
+    sudo -n apt-get update -qq
+    sudo -n apt-get install -y -qq ca-certificates curl gnupg2
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+      sudo -n gpg --batch --yes --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+      sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+      sudo -n tee /etc/apt/sources.list.d/nvidia-container-toolkit.list >/dev/null
+    sudo -n apt-get update -qq
+    sudo -n apt-get install -y -qq nvidia-container-toolkit=1.20.1-1 \
+      nvidia-container-toolkit-base=1.20.1-1 libnvidia-container-tools=1.20.1-1 libnvidia-container1=1.20.1-1
+  fi
+  sudo -n nvidia-ctk runtime configure --runtime=docker
+  sudo -n systemctl restart docker
+fi
 mkdir -p .runtime "$HF_HOME"
 chmod 700 .runtime
 exec 9>.runtime/setup.lock

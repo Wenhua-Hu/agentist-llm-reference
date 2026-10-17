@@ -74,7 +74,8 @@ def main():
                                 'input_tokens':len(ids),'cached_tokens':meta.get('cached_tokens'),
                                 'output':text,'quality_pass':quality,'ttft_ms':None if first is None else (first-start)*1000,
                                 'e2e_ms':elapsed,'completion_tokens':meta.get('completion_tokens'),
-                                'ok':error is None,'error':error}
+                                'transport_ok':error is None,'ok':error is None and quality and isinstance(meta.get('cached_tokens'),int),
+                                'error':error or (None if quality else 'quality_check_failed')}
                             evidence.row(**row);group_rows.append(row)
                         duration=time.monotonic()-window
                         summaries.append({'variant':variant,'group':group,'repeat':repeat,'seconds':duration,
@@ -87,6 +88,10 @@ def main():
             try:process.wait(timeout=20)
             except subprocess.TimeoutExpired:os.killpg(process.pid,signal.SIGKILL);process.wait()
             log.close();time.sleep(2)
-    evidence.finish({'groups':summaries,'counter_source':'SGLang /generate meta_info.cached_tokens',
+    reuse_valid=all((r['cached_tokens'] or 0)>=512 for r in evidence.rows if r['variant']=='on' and r['group']=='shared' and r['index']>0)
+    off_valid=all(r['cached_tokens']==0 for r in evidence.rows if r['variant']=='off')
+    if not reuse_valid or not off_valid:
+        evidence.row(variant='cache_evidence',ok=False,error='cache hit counters do not match expected controlled reuse',cache_state=None)
+    evidence.finish({'verified_prefix_hits':reuse_valid,'off_cache_zero':off_valid,'groups':summaries,'counter_source':'SGLang /generate meta_info.cached_tokens',
         'input_note':'Exactly 512 shared prefix IDs; all full token IDs saved. Unique group retains the short common chat header, which is legitimate reuse.'})
 if __name__=='__main__': entry(main)

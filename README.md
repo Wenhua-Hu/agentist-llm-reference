@@ -4,7 +4,7 @@
 
 ## 从干净 Lambda Linux 启动
 
-前置边界：Ubuntu x86_64、NVIDIA A10 驱动可用、Git、sudo、外网。Docker 缺失时 setup 安装；Lambda 镜像需具有 NVIDIA container runtime。不修改 GPU 驱动。所有项目 Python/引擎依赖来自 Dockerfile 的不可变镜像 digest + requirements.lock；模型缓存首次为空。
+前置边界：Ubuntu x86_64、NVIDIA A10 驱动可用、Git、sudo、外网。Docker 或 NVIDIA container runtime 缺失时 setup 自动安装并配置；只有无其他容器的专属 VM 才允许重启 Docker。不修改 GPU 驱动。所有项目 Python/引擎依赖来自 Dockerfile 的不可变镜像 digest + requirements.lock；模型缓存首次为空。
 
 ```bash
 git clone https://github.com/mrvgao/agentist-llm-reference.git
