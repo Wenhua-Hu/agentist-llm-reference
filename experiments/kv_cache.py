@@ -6,14 +6,20 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from .common import Evidence, tensor_hash, entry
 
 def main():
+    dtype_name=os.environ.get('KV_DTYPE','bfloat16')
+    if dtype_name not in ('bfloat16','float32'): raise ValueError('KV_DTYPE must be bfloat16 or float32')
+    dtype=getattr(torch,dtype_name)
+    atol,rtol=(.15,.02) if dtype_name=='bfloat16' else (.001,.0001)
+    torch.backends.cuda.matmul.allow_tf32=False
+    torch.backends.cudnn.allow_tf32=False
     parameters={'lengths':[128,512],'decode_tokens':32,'warmup':1,'repeats':3,
-                'dtype':'bfloat16','atol':.15,'rtol':.02,'seed':20261017}
+                'dtype':dtype_name,'atol':atol,'rtol':rtol,'tf32':False,'seed':20261017}
     evidence=Evidence('kv',parameters)
     tokenizer=AutoTokenizer.from_pretrained(os.environ['MODEL_ID'],revision=os.environ['MODEL_REVISION'])
     model=AutoModelForCausalLM.from_pretrained(os.environ['MODEL_ID'],revision=os.environ['MODEL_REVISION'],
-        torch_dtype=torch.bfloat16,attn_implementation='eager').cuda().eval()
+        torch_dtype=dtype,attn_implementation='eager').cuda().eval()
     cfg=model.config; dh=cfg.hidden_size//cfg.num_attention_heads
-    bytes_per_token=2*cfg.num_hidden_layers*cfg.num_key_value_heads*dh*2
+    bytes_per_token=2*cfg.num_hidden_layers*cfg.num_key_value_heads*dh*model.get_input_embeddings().weight.element_size()
     text=('A model server processes requests while preserving correctness. '*200)
     ids=tokenizer(text,return_tensors='pt').input_ids.cuda()
     summaries=[]
@@ -45,7 +51,8 @@ def main():
                 return duration,allocated,reserved,captured
             # Validate every decode position outside the measured runs.
             off=replay(False,True)[3]; on=replay(True,True)[3]
-            error=float((off-on).abs().max()); valid=bool(torch.allclose(off,on,atol=.15,rtol=.02))
+            error=float((off-on).abs().max()); valid=bool(torch.allclose(off,on,atol=atol,rtol=rtol))
+            top1=float((off.argmax(-1)==on.argmax(-1)).float().mean())
             for cache in (False,True): replay(cache)
             for repeat in range(3):
                 for cache in ([False,True] if repeat%2==0 else [True,False]):
@@ -54,10 +61,11 @@ def main():
                     evidence.row(variant='cache_on' if cache else 'cache_off',length=length,repeat=repeat,
                         input_hash=tensor_hash(prompt),continuation_hash=tensor_hash(continuation),decode_tokens=32,
                         elapsed_ms=elapsed,peak_allocated_bytes=allocated,peak_reserved_bytes=reserved,
-                        max_abs_error=error,atol=.15,rtol=.02,ok=valid,cache_state='prefilled' if cache else 'none')
-            summaries.append({'length':length,'max_abs_error':error,'correct':valid,
+                        max_abs_error=error,atol=atol,rtol=rtol,top1_agreement=top1,dtype=dtype_name,ok=valid,
+                        error=None if valid else 'logits_tolerance_exceeded',cache_state='prefilled' if cache else 'none')
+            summaries.append({'length':length,'max_abs_error':error,'correct':valid,'top1_agreement':top1,
                 'KV_bytes_one_request':bytes_per_token*(length+32),'KV_bytes_eight_requests':8*bytes_per_token*(length+32)})
     evidence.finish({'layers':cfg.num_hidden_layers,'KV_heads':cfg.num_key_value_heads,'head_dim':dh,
-        'dtype_bytes':2,'KV_bytes_per_token':bytes_per_token,'measurements':summaries,
+        'dtype':dtype_name,'dtype_bytes':model.get_input_embeddings().weight.element_size(),'KV_bytes_per_token':bytes_per_token,'measurements':summaries,
         'memory_note':'Logical active KV is distinct from allocator reserved bytes and the SGLang preallocated pool; weights also occupy process VRAM.'})
 if __name__=='__main__': entry(main)

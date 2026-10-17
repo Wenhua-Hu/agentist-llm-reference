@@ -28,6 +28,6 @@ mkdir -p "$out"
 sudo -n docker run --rm --gpus all --network host --shm-size 4g --entrypoint python3 \
   -v "$PWD:/app:ro" -v "$PWD/results:/app/results" -v "$HF_HOME:/hf" \
   -e "MODEL_ID=$MODEL_ID" -e "MODEL_REVISION=$MODEL_REVISION" -e HF_HOME=/hf \
-  -e "SOURCE_COMMIT=$(git rev-parse HEAD)" -e HF_HUB_DISABLE_XET=1 \
+  -e "SOURCE_COMMIT=$(git rev-parse HEAD)" -e HF_HUB_DISABLE_XET=1 -e "KV_DTYPE=${KV_DTYPE:-bfloat16}" \
   "$image" -m "experiments.$module" --out "$out"
 echo 'Experiment finished; run setup.sh explicitly to restart serving.'

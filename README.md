@@ -61,3 +61,13 @@ python3 -m venv .venv
 ```
 
 正式评测只通过平台“评测”显式触发，clone 指定完整 commit，再执行 setup 和独立测量。push/CI 不触发 GPU。参考实现不包含 Lambda、数据库、平台服务密钥。
+
+## KV 数值诊断
+
+首次 A10 实测发现 BF16 cache on/off 的全词表 logits 差异超过预设 atol=0.15/rtol=0.02；负结果原样保留，默认命令仍按原阈值返回失败，不修改答案或事后放宽容差。可独立运行 FP32、禁用 TF32 的控制实验定位误差来源：
+
+```bash
+KV_DTYPE=float32 bash experiments/run.sh --case kv --out results/kv-fp32/rehearsal
+```
+
+FP32 对照使用预先固定的 atol=0.001/rtol=0.0001，两分支同为 FP32；其结果不能替代 BF16 验证。两种精度均报告 top-1 agreement 与全词表误差。正式服务仍固定 BF16。
