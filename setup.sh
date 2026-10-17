@@ -64,6 +64,8 @@ image="agentist-llm-reference:$build_id"
 if ! sudo -n docker image inspect "$image" >/dev/null 2>&1; then
   sudo -n docker build --progress=plain -t "$image" .
 fi
+# Host nvidia-smi is insufficient: verify NVML and a real CUDA allocation in this image.
+bash scripts/check-gpu.sh "$image"
 # Secret is read from the inherited environment; never passed as a literal CLI argument.
 sudo -n --preserve-env=API_KEY docker run -d --name "$name" --gpus all --network host \
   --shm-size 4g --label agentist.project=reference-v1 --label "agentist.fingerprint=$fingerprint" \
