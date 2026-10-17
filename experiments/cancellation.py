@@ -1,4 +1,4 @@
-"""Run inside the serving container via docker exec; explicitly called, never at startup."""
+"""Explicit serving cancellation diagnostic; never runs during startup."""
 import asyncio
 import json
 import os
@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 
 async def main():
-    out=Path('/runtime/cancellation');out.mkdir(exist_ok=True)
+    out=Path(os.environ.get('RUNTIME_DIR', '.runtime'))/'cancellation';out.mkdir(parents=True, exist_ok=True)
     headers={'Authorization':'Bearer '+os.environ['API_KEY']}
     base='http://127.0.0.1:'+os.environ['PORT']
     rows=[]

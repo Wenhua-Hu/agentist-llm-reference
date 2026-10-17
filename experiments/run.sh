@@ -14,10 +14,22 @@ case "$case_name" in
   *) echo '--case kv|prefix|attention required'; exit 2;;
 esac
 [[ "$out" == results/* && "$out" != *..* ]] || { echo '--out must be under results/'; exit 2; }
-[[ -f .runtime/image ]] || { echo 'Run setup.sh once to install pinned environment'; exit 1; }
+[[ -f .runtime/image || -f .runtime/runtime.json ]] || { echo 'Run setup.sh once to install pinned environment'; exit 1; }
 export MODEL_ID="${MODEL_ID:-Qwen/Qwen2.5-1.5B-Instruct}"
 export MODEL_REVISION="${MODEL_REVISION:-989aa7980e4cf806f80c7fef2b1adb7bc71aa306}"
 export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
+if [[ -f .runtime/runtime.json ]]; then
+  # Stop our managed processes, never unrelated processes in the sandbox.
+  bash setup.sh --stop
+  exec 9>.runtime/setup.lock; flock -w 10 9
+  mkdir -p "$out"
+  engine_python=$(python3 -c 'import json; print(json.load(open(".runtime/runtime.json"))["engine_python"])')
+  export SGLANG_PYTHON="$engine_python" SOURCE_COMMIT="$(git rev-parse HEAD)"
+  export HF_HUB_DISABLE_XET=1 KV_DTYPE="${KV_DTYPE:-bfloat16}"
+  "$engine_python" -m "experiments.$module" --out "$out"
+  echo 'Experiment finished; run setup.sh explicitly to restart serving.'
+  exit 0
+fi
 image=$(cat .runtime/image)
 exec 9>.runtime/setup.lock; flock -w 10 9
 owner=$(sudo -n docker inspect -f '{{index .Config.Labels "agentist.project"}}' agentist-llm-reference 2>/dev/null || true)

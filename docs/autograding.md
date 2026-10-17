@@ -53,7 +53,7 @@ bash experiments/run.sh --case attention --out results/platform-<随机运行标
 
 ### 证据文件格式
 
-每个 `--out` 目录必须生成 UTF-8 JSON 文件，不允许符号链接，每个被采集文件最多 60,000 字节；未完成字段写 null，禁止 NaN/Infinity。所有原始行的分组键必须唯一，缺失/重复/额外样本都会使矩阵检查失败。
+每个 `--out` 目录必须生成 UTF-8 JSON 文件，不允许符号链接，每个被采集文件最多 256,000 字节；未完成字段写 null，禁止 NaN/Infinity。所有原始行的分组键必须唯一，缺失/重复/额外样本都会使矩阵检查失败。
 
 `manifest.json`：`case`（kv/prefix/attention）、`time`（本次 UTC ISO 时间）、`commit`（完整 SHA）、`model`、`revision`、`gpu`（`nvidia-smi --query-gpu=name,uuid,driver_version,memory.total --format=csv,noheader` 原始文本去尾部换行）、`software`（torch/transformers/sglang 版本）、`cuda`、`complete`（只有完整运行才为 true）、`parameters`。数值不通过仍应保留 complete=true，并返回非零；中途失败为 false。
 

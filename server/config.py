@@ -10,4 +10,21 @@ def configuration():
     profile = os.environ.get('BENCH_PROFILE', 'baseline')
     if profile not in ('baseline', 'optimized'):
         raise ValueError('unknown profile')
-    return profile, yaml.safe_load((ROOT / 'configs' / (profile + '.yaml')).read_text())
+    cfg = yaml.safe_load((ROOT / 'configs' / (profile + '.yaml')).read_text())
+    for env, field, maximum in [('MAX_RUNNING_REQUESTS', 'max_running_requests', 32),
+                                 ('GATEWAY_SLOTS', 'gateway_slots', 64),
+                                 ('GATEWAY_QUEUE', 'gateway_queue', 128)]:
+        if env in os.environ:
+            value = int(os.environ[env])
+            if not 1 <= value <= maximum:
+                raise ValueError(env + ' outside supported range')
+            cfg[field] = value
+    if 'PREFIX_CACHE' in os.environ:
+        if os.environ['PREFIX_CACHE'] not in ('0', '1'):
+            raise ValueError('PREFIX_CACHE must be 0 or 1')
+        cfg['prefix_cache'] = os.environ['PREFIX_CACHE'] == '1'
+    if 'ATTENTION_BACKEND' in os.environ:
+        if os.environ['ATTENTION_BACKEND'] not in ('triton', 'flashinfer'):
+            raise ValueError('Unsupported ATTENTION_BACKEND')
+        cfg['attention_backend'] = os.environ['ATTENTION_BACKEND']
+    return profile, cfg

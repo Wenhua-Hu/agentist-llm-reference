@@ -116,7 +116,12 @@ def create_app(backend=None, key=None, config=None):
     @app.get('/info')
     async def info():
         try:
-            engine_version = importlib.metadata.version('sglang')
+            runtime_file = os.path.join(os.environ.get('RUNTIME_DIR', '.runtime'), 'runtime.json')
+            if os.path.isfile(runtime_file):
+                with open(runtime_file) as f:
+                    engine_version = json.load(f)['versions']['sglang']
+            else:
+                engine_version = importlib.metadata.version('sglang')
         except importlib.metadata.PackageNotFoundError:
             engine_version = 'mock-test-only'
         return {'contract': 'llm-lab/1.0', 'model_id': model, 'model_revision': revision,

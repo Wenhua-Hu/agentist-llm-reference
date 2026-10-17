@@ -8,9 +8,9 @@
 
 [实测报告与图表](docs/performance.md) · [项目验收证据索引](docs/acceptance.md) · [原始数据](results/)
 
-## 从干净 Lambda Linux 启动
+## 从干净 Daytona GPU Linux 启动
 
-前置边界：Ubuntu x86_64、NVIDIA A10 驱动可用、Git、sudo、外网。Docker 或 NVIDIA container runtime 缺失时 setup 自动安装并配置；只有无其他容器的专属 VM 才允许重启 Docker。不修改 GPU 驱动。所有项目 Python/引擎依赖来自 Dockerfile 的不可变镜像 digest + requirements.lock；模型缓存首次为空。
+前置边界：Linux x86_64、NVIDIA RTX 4090 驱动可用、Git、Python 3.12/venv、外网。`setup.sh` 在项目私有 `.venv` 安装依赖，不使用 Docker、sudo 或 systemd，不修改 GPU 驱动。引擎关键版本见 `requirements-runtime.lock`；可复用平台下载缓存，但项目配置与代码从指定 Git commit 重建。若平台提供已固定版本的引擎解释器，可以显式设置 `SGLANG_PYTHON=/path/to/python`，setup 会检查版本；网关仍使用私有 venv。干净安装和预置运行时必须分别记录，不能混称为同一种冷启动。历史 Lambda 路径保留在 `setup-lambda.sh`，不代表当前配置已在 A10 重测。
 
 ```bash
 git clone https://github.com/mrvgao/agentist-llm-reference.git
@@ -26,7 +26,7 @@ curl -fsS http://127.0.0.1:8000/healthz
 curl -fsS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8000/info
 ```
 
-`setup.sh` 等待就绪后退出；服务在受管理容器中运行，日志在 `.runtime/`。相同配置幂等；`BENCH_PROFILE=optimized bash setup.sh` 停本项目旧服务再启动优化配置。密钥由环境传递，真实密钥不入库。
+`setup.sh` 等待就绪后退出；服务由本项目 supervisor 管理，记录 PID 与 Linux 进程启动标识，日志在 `.runtime/`。相同配置幂等；`BENCH_PROFILE=optimized bash setup.sh` 停本项目旧服务再启动优化配置。密钥由环境传递，真实密钥不入库。
 
 ```bash
 curl -N http://127.0.0.1:8000/v1/chat/completions \
@@ -36,10 +36,10 @@ curl -N http://127.0.0.1:8000/v1/chat/completions \
 
 ## 代码入口
 
-- `setup.sh` / `Dockerfile` / `server/supervisor.py`：可重建、幂等、进程生命周期。
+- `setup.sh` / `scripts/native_setup.py` / `server/supervisor.py`：可重建、幂等、进程生命周期。
 - `server/app.py` / `auth.py` / `admission.py` / `streaming.py` / `backend.py`：公开合同、鉴权、排队、真实 SGLang 转发、取消。
 - `agent/`：模型规划 → 白名单 lookup_order → 模型最终回答；不从题目绕过模型生成答案。
-- `configs/`：baseline 1 个 running request / 8192 tokens，optimized 8 / 16384。模型、BF16、4096 上下文、Triton attention、prefix off 相同。CUDA Graph 两组均关闭，减少部署编译并独立观察批处理。
+- `configs/`：baseline 1 个 running request / 8192 KV tokens / Triton / prefix off / CUDA Graph off；optimized 32 / 16384 / FlashInfer / prefix on / CUDA Graph on。两组固定模型、BF16、4096 上下文和网关 32 slots/64 queue。总 profile 比较不能归因到单项；用 `MAX_RUNNING_REQUESTS`、`PREFIX_CACHE`、`ATTENTION_BACKEND` 做受控消融。
 - `experiments/`：KV Cache、RadixAttention、SDPA math/flash、服务压测、GPU 取消验证与 SVG。
 - `tests/` / `.github/workflows/ci.yml`：只有 CPU 测试，不申请 GPU。
 - `docs/` / `results/`：架构、运维、性能结论与原始证据。见 `docs/performance.md` 实测状态。
@@ -53,10 +53,10 @@ bash experiments/run.sh --case kv --out results/kv/run-1
 bash experiments/run.sh --case attention --out results/attention/run-1
 bash experiments/run.sh --case prefix --out results/prefix/run-1
 bash setup.sh # 显式恢复服务
-sudo docker exec agentist-llm-reference python3 -m experiments.cancellation
+.venv/bin/python -m experiments.cancellation
 ```
 
-实验失败返回非零并保存 failure.json；不会静默换后端。完整记录 manifest/raw/summary/SVG，profiler 大文件在实验目录生成，发布时附 SHA256。服务使用 Triton，并不宣称其等同于 SDPA 的 FlashAttention 后端。
+实验失败返回非零并保存 failure.json；不会静默换后端。完整记录 manifest/raw/summary/SVG，profiler 大文件在实验目录生成，发布时附 SHA256。优化服务使用 FlashInfer；SDPA FlashAttention 是独立机制实验，不宣称二者是同一个实现。服务性能必须通过外部请求实测。
 
 ## CPU 测试
 
@@ -66,7 +66,7 @@ python3 -m venv .venv
 .venv/bin/python -m pytest -q
 ```
 
-正式评测只通过平台“评测”显式触发，clone 指定完整 commit，再执行 setup 和独立测量。push/CI 不触发 GPU。参考实现不包含 Lambda、数据库、平台服务密钥。
+正式评测只通过平台“评测”显式触发，clone 指定完整 commit，再执行 setup 和独立测量。push/CI 不触发 GPU。参考实现不包含 Daytona、数据库、平台服务密钥。
 
 ## KV 数值诊断
 

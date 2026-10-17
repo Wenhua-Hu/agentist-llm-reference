@@ -36,6 +36,21 @@ def verify(root, formal_name="formal"):
         for raw_key,key in [('ttft_proxy_ms','ttft_p95_ms'),('e2e_ms','e2e_p95_ms'),('tpot_proxy_ms','tpot_p95_ms')]:
             values=sorted(r[raw_key] for r in rows if r['ok'] and r[raw_key] is not None)
             assert math.isclose(values[math.ceil(len(values)*.95)-1],group[key],rel_tol=1e-12)
+    if formal_name == 'rubric3':
+        assert report['rubric']=='llm-lab/3.0'
+        assert report['automatic_max']==95 and report['manual_max']==5
+        expected_caps={'reproduce':10,'api':10,'quality':10,'performance':15,'agent':5,'kv':15,'prefix':15,'attention':15}
+        assert len(report['checks'])==8
+        assert {c['id']:c['max'] for c in report['checks']}==expected_caps
+        assert sum(c['points'] for c in report['checks'])==report['automatic_score']
+        for case,count in [('kv',12),('prefix',96),('attention',18)]:
+            check=next(c for c in report['checks'] if c['id']==case)
+            assert sum(c['points'] for c in check['subchecks'])==check['points']
+            assert sum(c['max'] for c in check['subchecks'])==15
+            directory=formal/case
+            manifest=json.loads((directory/'manifest.json').read_text())
+            assert manifest['commit']==report['commit_sha'] and manifest['complete']
+            assert len(read_rows(directory/'raw.jsonl'))==count
     for trace in root.glob('attention/rehearsal/*.trace.json.gz'):
         checksum=json.loads(trace.with_name(trace.name.replace('.trace.json.gz','-trace-sha256.json')).read_text())['sha256']
         assert hashlib.sha256(gzip.decompress(trace.read_bytes())).hexdigest()==checksum
@@ -64,5 +79,5 @@ def verify(root, formal_name="formal"):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--results',type=Path,default=Path('results'))
-    parser.add_argument('--formal-directory',default='formal',choices=['formal','confirmation'])
+    parser.add_argument('--formal-directory',default='formal',choices=['formal','confirmation','rubric3'])
     args=parser.parse_args();verify(args.results,args.formal_directory)

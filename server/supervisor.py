@@ -1,4 +1,4 @@
-"""One container owns one engine process group and one gateway process group."""
+"""Own one engine and gateway process group, on a native sandbox or in Docker."""
 import json
 import os
 from pathlib import Path
@@ -9,7 +9,7 @@ import time
 from .config import configuration
 
 def engine_command(config, cache=None):
-    args = [sys.executable, '-m', 'sglang.launch_server',
+    args = [os.environ.get('SGLANG_PYTHON', sys.executable), '-m', 'sglang.launch_server',
         '--model-path', os.environ['MODEL_ID'], '--revision', os.environ['MODEL_REVISION'],
         '--served-model-name', os.environ['MODEL_ID'], '--host', '127.0.0.1', '--port', '30000',
         '--dtype', config['dtype'], '--context-length', str(config['context_length']),
@@ -18,14 +18,18 @@ def engine_command(config, cache=None):
         '--max-total-tokens', str(config['max_total_tokens']),
         '--max-prefill-tokens', str(config['max_prefill_tokens']),
         '--attention-backend', config['attention_backend'], '--enable-metrics',
-        '--disable-cuda-graph']
+        '--stream-interval', '1']
+    if not config.get('cuda_graph', False):
+        args += ['--disable-cuda-graph']
+    else:
+        args += ['--cuda-graph-max-bs', str(config['max_running_requests'])]
     if not (config['prefix_cache'] if cache is None else cache):
         args += ['--disable-radix-cache']
     return args
 
 def main():
     _, cfg = configuration()
-    logs = Path('/runtime'); logs.mkdir(exist_ok=True)
+    logs = Path(os.environ.get('RUNTIME_DIR', '/runtime')); logs.mkdir(exist_ok=True)
     command = engine_command(cfg)
     (logs/'engine-command.json').write_text(json.dumps(command, indent=2))
     engine_log = (logs/'engine.log').open('a')

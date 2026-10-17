@@ -3,7 +3,7 @@ import httpx
 class Backend:
     def __init__(self, url='http://127.0.0.1:30000'):
         self.client = httpx.AsyncClient(base_url=url, timeout=30, trust_env=False,
-                                      limits=httpx.Limits(max_connections=32))
+                                      limits=httpx.Limits(max_connections=128))
 
     async def ready(self):
         try:
