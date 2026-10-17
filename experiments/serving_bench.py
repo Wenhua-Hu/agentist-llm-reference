@@ -21,7 +21,7 @@ async def main():
         async def one(i):
             async with sem:
                 fields={'id':10000+i,'city':'Boston','units':i%9+1}
-                item={'id':str(i),'messages':[{'role':'system','content':'Extract exactly id, city, units. Return only JSON.'},
+                item={'id':str(i),'messages':[{'role':'system','content':'Extract exactly id, city, units. id and units must be JSON integers; city must be a JSON string. Return only JSON.'},
                     {'role':'user','content':json.dumps(fields)}],'max_tokens':96,'quality':{'json_fields':fields}}
                 row=await request_once(c,args.base+'/v1/chat/completions',os.environ['MODEL_ID'],item,30,os.environ['API_KEY'],str(i),True)
                 row.update(variant=os.environ.get('BENCH_PROFILE','unknown'),group='c'+str(args.concurrency),ttft_ms=row.get('ttft_proxy_ms'))
