@@ -70,3 +70,17 @@ def test_stop_terminates_only_owned_supervisor(tmp_path, monkeypatch):
     monkeypatch.setattr(native.os, 'kill', lambda *args: calls.append(args))
     native.stop_owned()
     assert calls == [(123, signal.SIGTERM)]
+
+
+def test_startup_log_forwarding_redacts_split_secret(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv('API_KEY', 'secret-fixture-value')
+    path = tmp_path/'engine.log'
+    path.write_text('ready secret-fixture-value now\n')
+    state = {path: {'offset': 0, 'pending': b''}}
+    native.forward_logs(state, max_bytes=12)
+    assert capsys.readouterr().out == ''
+    native.forward_logs(state)
+    output = capsys.readouterr().out
+    assert 'secret' not in output and '[REDACTED]' in output
+    native.forward_logs(state)
+    assert capsys.readouterr().out == ''

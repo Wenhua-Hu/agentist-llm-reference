@@ -72,6 +72,25 @@ def healthy(host, port):
         return False
 
 
+def forward_logs(logs, *, max_bytes=65536):
+    """Forward only new complete lines; redact secrets even across read boundaries."""
+    secret = os.environ.get('API_KEY', '').encode()
+    for path, state in logs.items():
+        if not path.exists():
+            continue
+        with path.open('rb') as source:
+            source.seek(state['offset'])
+            new = source.read(max_bytes)
+            state['offset'] = source.tell()
+        data = state['pending'] + new
+        lines = data.split(b'\n')
+        state['pending'] = lines.pop()
+        for line in lines:
+            if secret:
+                line = line.replace(secret, b'[REDACTED]')
+            print('[' + path.stem + '] ' + line.decode('utf-8', errors='replace'), flush=True)
+
+
 def main():
     os.chdir(ROOT)
     STATE.mkdir(mode=0o700, exist_ok=True)
@@ -134,6 +153,9 @@ def main():
         os.environ['SGLANG_PYTHON'] = engine_python
         (STATE / 'runtime.json').write_text(json.dumps({'engine_python': engine_python,
             'gateway_python': str(gateway_python), 'versions': versions, 'mode': 'native'}, indent=2))
+        logs = {STATE/name: {'offset': (STATE/name).stat().st_size if (STATE/name).exists() else 0,
+                             'pending': b''}
+                for name in ('supervisor.log', 'engine.log', 'gateway.log')}
         with (STATE / 'supervisor.log').open('a') as log:
             child = subprocess.Popen([str(gateway_python), '-m', 'server.supervisor'],
                 stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True, close_fds=True)
@@ -141,12 +163,15 @@ def main():
                                     'fingerprint': fingerprint}))
         deadline = time.monotonic() + int(os.environ.get('STARTUP_TIMEOUT', '420'))
         while time.monotonic() < deadline and child.poll() is None:
+            forward_logs(logs)
             if healthy(host.replace('0.0.0.0', '127.0.0.1'), port):
+                forward_logs(logs)
                 print('Native SGLang service ready: profile=' + os.environ['BENCH_PROFILE'], flush=True)
                 return
             time.sleep(1)
         # Stop processes even on failed startup, and preserve diagnostic files.
         stop_owned()
+        forward_logs(logs)
         raise RuntimeError('Service did not become ready; inspect .runtime/{engine,gateway,supervisor}.log')
 
 if __name__ == '__main__':
