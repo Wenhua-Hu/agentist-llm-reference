@@ -1,0 +1,13 @@
+name: CPU contract tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: pip install -r requirements.lock pytest==8.4.1 pytest-asyncio==1.1.0
+      - run: python -m pytest -q
+      - run: bash -n setup.sh experiments/run.sh
