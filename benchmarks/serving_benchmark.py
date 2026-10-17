@@ -30,8 +30,36 @@ def chat_tokens(tokenizer, messages):
     return len(tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True))
 
 
-def build_workload(tokenizer, spec, seed, count):
+WORKLOAD_V1 = "typed-json-exact-input/1"
+WORKLOAD_V2 = "json-literal-copy-exact-input/2"
+SUPPORTED_WORKLOADS = {WORKLOAD_V1, WORKLOAD_V2}
+
+NEUTRAL_DECODING = {"temperature": 0, "repetition_penalty": 1.0, "top_p": 1.0,
+                    "top_k": -1, "sampling_defaults": "openai"}
+
+
+def neutral_policy(policy):
+    return isinstance(policy, dict) and policy == NEUTRAL_DECODING and all(
+        not isinstance(policy[k], bool) for k in ('temperature', 'repetition_penalty', 'top_p', 'top_k'))
+
+
+def runtime_decoding_policy(info):
+    # Temperature is explicitly sent in every measured request. Other fields
+    # are runtime declarations, not an attestation against a dishonest server.
+    config = info.get('config', {}) if isinstance(info, dict) else {}
+    if not isinstance(config, dict): config = {}
+    return {'temperature': 0, **{k: config.get(k) for k in
+            ('repetition_penalty', 'top_p', 'top_k', 'sampling_defaults')}}
+
+
+def decoding_matches(info, config):
+    return neutral_policy(config.get('decoding_policy')) and neutral_policy(runtime_decoding_policy(info))
+
+
+def build_workload(tokenizer, spec, seed, count, workload_version=WORKLOAD_V1):
     """Exact *chat-template* input length, with controller-generated JSON answers."""
+    if workload_version not in SUPPORTED_WORKLOADS:
+        raise ValueError('unsupported workload version')
     rng = random.Random(seed)
     items = []
     for index in range(count):
@@ -43,13 +71,21 @@ def build_workload(tokenizer, spec, seed, count):
                        'Return ONLY a JSON object with key records containing all records in order. '
                        'Each record has integer id, string city, integer units.')
         text = '\n'.join(f"Record: units={r['units']}; city={r['city']}; id={r['id']}." for r in records)
-        messages = [{'role': 'system', 'content': instruction + ' Do not include markdown or explanations. Ignore padding.'},
+        if workload_version == WORKLOAD_V2:
+            instruction = ('Return the JSON inside <answer> exactly. Do not change any key, value, number '
+                           'or array order. Return JSON only, without markdown or explanations. Ignore <background>.')
+            # Same unfiltered RNG draw, integer types and 1/8 records as v1.
+            # Literal copy removes field rearrangement without hiding zeros.
+            text = json.dumps(expected, ensure_ascii=False)
+        messages = [{'role': 'system', 'content': instruction if workload_version == WORKLOAD_V2 else
+                     instruction + ' Do not include markdown or explanations. Ignore padding.'},
                     {'role': 'user', 'content': ''}]
-        # Repeated standalone ASCII words are stable single tokens for the frozen tokenizer.
-        # Verify every item rather than assuming token/character equivalence.
         padding = 0
         for _ in range(12):
-            messages[1]['content'] = 'Padding (ignore):' + ' z' * padding + '\nRecords:\n' + text
+            if workload_version == WORKLOAD_V2:
+                messages[1]['content'] = '<background>' + ' z' * padding + '</background>\n<answer>' + text + '</answer>'
+            else:
+                messages[1]['content'] = 'Padding (ignore):' + ' z' * padding + '\nRecords:\n' + text
             actual = chat_tokens(tokenizer, messages)
             delta = spec['input_tokens'] - actual
             if delta == 0:
@@ -81,7 +117,10 @@ def output_valid(text, expected):
         return False
 
 
-async def request_once(client, base, key, model, item, tokenizer, timeout, ident):
+async def request_once(client, base, key, model, item, tokenizer, timeout, ident, sampling_overrides=None):
+    if sampling_overrides is not None and (set(sampling_overrides) != {'repetition_penalty'} or
+            type(sampling_overrides['repetition_penalty']) not in (int,float) or sampling_overrides['repetition_penalty'] not in (1.0,1.1)):
+        raise ValueError('diagnostic override permits only repetition_penalty=1.0 or1.1')
     started = time.perf_counter()
     row = {'id': ident, 'workload_id': item['id'], 'input_tokens': item['input_tokens'],
            'ok': False, 'quality_pass': False, 'error': None, 'status': None,
@@ -95,6 +134,7 @@ async def request_once(client, base, key, model, item, tokenizer, timeout, ident
         body = {'model': model, 'messages': item['messages'], 'temperature': 0,
                 'max_tokens': item['max_tokens'], 'stream': True,
                 'stream_options': {'include_usage': True}}
+        if sampling_overrides:body.update(sampling_overrides)
         done = finished = False
         async with client.stream('POST', base.rstrip('/') + '/v1/chat/completions', json=body,
                                  headers={'Authorization': 'Bearer ' + key, 'X-Request-ID': ident}) as response:
@@ -192,6 +232,8 @@ def summarize(rows, seconds, slo=None):
 
 def validate_acceptance(config):
     """Fail closed: no optimistic defaults for unpublished/unknown thresholds."""
+    if not neutral_policy(config.get('decoding_policy')):
+        raise ValueError('missing or unsupported neutral decoding policy')
     if config.get('status') != 'calibrated' or not config.get('calibration'):
         raise ValueError('acceptance is not calibrated')
     targets = config.get('targets')
@@ -218,7 +260,7 @@ def score_performance(config, summaries, manifest, maximum=30):
         targets = validate_acceptance(config)
     except (ValueError, KeyError, TypeError) as exc:
         return {'points': 0, 'max': maximum, 'passed': False, 'status': 'uncalibrated', 'detail': str(exc), 'checks': []}
-    identity = (config['hardware_contains'] in manifest.get('gpu_name', '') and
+    identity = (neutral_policy(manifest.get('decoding_policy')) and config['hardware_contains'] in manifest.get('gpu_name', '') and
                 all(manifest.get(k) == config[k] for k in ('model_id', 'model_revision', 'dtype')))
     checks = []
     minimum_samples = config['requests_per_repeat'] * config['repeats']
@@ -228,7 +270,8 @@ def score_performance(config, summaries, manifest, maximum=30):
         row = matched[0] if len(matched) == 1 else {}
         prerequisites = identity and len(matched) == 1 and row.get('requests', 0) >= minimum_samples and \
             row.get('repeats') == config['repeats'] and row.get('usage_verified') is True and \
-            row.get('timing_complete') is True and row.get('workload_version') == config['workload_version']
+            row.get('timing_complete') is True and row.get('workload_version') == config['workload_version'] and \
+            neutral_policy(row.get('decoding_policy'))
         values = []
         for metric, threshold, operation in [
             ('output_tokens_per_second', 'output_tokens_per_second_min', 'min'),
@@ -280,14 +323,23 @@ async def measure(base, key, profile, config, tokenizer, seed, out, emit=print):
         target_map = {}
     async with httpx.AsyncClient(timeout=None, trust_env=False,
         limits=httpx.Limits(max_connections=max(config['concurrencies']))) as client:
+        response = await client.get(base+'/info', headers={'Authorization': 'Bearer '+key}, timeout=30)
+        response.raise_for_status()
+        info = response.json()
+        if info.get('profile') != profile or not decoding_matches(info, config):
+            raise ValueError('runtime profile/neutral decoding policy mismatch')
+        (out/f'{profile}-serving-identity.json').write_text(json.dumps({
+            'profile': profile, 'decoding_policy': runtime_decoding_policy(info),
+            'source': 'service_declared_runtime_configuration',
+            'model_id': info.get('model_id'), 'model_revision': info.get('model_revision')}, indent=2))
         for spec_index, spec in enumerate(config['workloads']):
             for concurrency in config['concurrencies']:
                 case_rows, duration = [], 0
                 for repeat in range(config['repeats']):
                     # Unique across cells, identical baseline/optimized. Separate warmup inputs.
                     salt = seed + spec_index*1000000 + concurrency*10000 + repeat*100
-                    items = build_workload(tokenizer, spec, salt, config['requests_per_repeat'])
-                    warm = build_workload(tokenizer, spec, salt+50000000, config['warmup_requests'])
+                    items = build_workload(tokenizer, spec, salt, config['requests_per_repeat'], config['workload_version'])
+                    warm = build_workload(tokenizer, spec, salt+50000000, config['warmup_requests'], config['workload_version'])
                     warm_rows.extend(await asyncio.gather(*(request_once(client, base, key, config['model_id'], item,
                         tokenizer, config['deadline_seconds'], f'{profile}-{spec["id"]}-c{concurrency}-r{repeat}-warm-{i}')
                         for i, item in enumerate(warm))))
@@ -312,6 +364,7 @@ async def measure(base, key, profile, config, tokenizer, seed, out, emit=print):
                 summary = summarize(case_rows, duration, target_map.get((spec['id'], concurrency)))
                 summary.update({'profile': profile, 'workload': spec['id'], 'concurrency': concurrency,
                     'repeats': config['repeats'], 'workload_version': config['workload_version'],
+                    'decoding_policy': runtime_decoding_policy(info),
                     'input_tokens': spec['input_tokens'], 'max_output_tokens_requested': spec['max_output_tokens']})
                 summaries.append(summary)
                 all_rows.extend(case_rows)
@@ -329,6 +382,8 @@ def validate_service_identity(declared, config, profile):
     mismatched = [name for name, value in expected.items() if declared.get(name) != value]
     if (declared.get('config') or {}).get('dtype') != config['dtype']:
         mismatched.append('dtype')
+    if not decoding_matches(declared, config):
+        mismatched.append('neutral decoding policy')
     if mismatched:
         raise ValueError('Service configuration differs from benchmark: ' + ', '.join(mismatched))
 

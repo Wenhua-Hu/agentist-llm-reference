@@ -7,14 +7,29 @@
   "model_revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
   "dtype": "bfloat16",
   "workload_version": "typed-json-exact-input/1",
-  "concurrencies": [1, 4, 8, 16],
+  "concurrencies": [
+    1,
+    4,
+    8,
+    16
+  ],
   "repeats": 3,
   "requests_per_repeat": 16,
   "deadline_seconds": 45,
   "warmup_requests": 2,
   "workloads": [
-    {"id": "short", "input_tokens": 512, "records": 1, "max_output_tokens": 96},
-    {"id": "long", "input_tokens": 1024, "records": 8, "max_output_tokens": 384}
+    {
+      "id": "short",
+      "input_tokens": 512,
+      "records": 1,
+      "max_output_tokens": 96
+    },
+    {
+      "id": "long",
+      "input_tokens": 1024,
+      "records": 8,
+      "max_output_tokens": 384
+    }
   ],
   "targets": null,
   "calibration": null,
@@ -22,6 +37,15 @@
     "No points until targets and real calibration evidence are published. Null thresholds are never a pass.",
     "Timing uses trusted client clock. TTFT is time to first non-empty text event; TPOT uses independently retokenized visible text. Event gaps are not exact per-token ITL.",
     "Per-run inputs are fresh; only shape warmup is reused. Both profiles get identical measured prompts. Cache hits are permitted and must be reported separately in cache-specific tests.",
-    "Model, hardware, dtype, exact chat-template input lengths and maximum output lengths are part of the acceptance contract. Output length is model-determined and recorded; correctness is a prerequisite for counting useful throughput."
-  ]
+    "Model, hardware, dtype, exact chat-template input lengths and maximum output lengths are part of the acceptance contract. Output length is model-determined and recorded; correctness is a prerequisite for counting useful throughput.",
+    "Closed-loop structured extraction with shared padding, not general LLM throughput. Common padding prefixes may benefit RadixAttention; dedicated shared/unique prefix on/off tests remain separate evidence.",
+    "Neutral decoding is fixed: temperature=0 in requests, SGLang --sampling-defaults=openai, repetition_penalty=1, top_p=1, top_k=-1. Runtime declarations are checked for both profiles; model-inherited sampling defaults cannot be mixed into calibration."
+  ],
+  "decoding_policy": {
+    "temperature": 0,
+    "repetition_penalty": 1.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "sampling_defaults": "openai"
+  }
 }
