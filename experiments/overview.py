@@ -31,7 +31,7 @@ def main():
         for index,variant in enumerate(variants):
             values=[mean(r['elapsed_ms'] for r in data if r.get('variant')==variant and r.get('length')==length) for length in lengths]
             axis.plot(lengths,values,marker='o',label=variant,color=['#718096','#2458d3'][index])
-        axis.set(title='KV: fixed 32-token replay' if case=='kv' else 'Attention: forced SDPA backends',xlabel='Input tokens',ylabel='Mean latency (ms)',xticks=lengths)
+        axis.set(title='KV BF16: FAILED logits tolerance\nTiming only; not a correctness-qualified speedup' if case=='kv' else 'Attention: forced SDPA backends',xlabel='Input tokens',ylabel='Mean latency (ms)',xticks=lengths)
         axis.legend();axis.grid(alpha=.2)
     data=rows(root/'prefix/rehearsal/raw.jsonl');ax=axes[1,2];labels=[];values=[]
     for group in ['shared','unique']:

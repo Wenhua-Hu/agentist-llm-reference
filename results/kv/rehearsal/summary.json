@@ -1,0 +1,24 @@
+{
+  "layers": 28,
+  "KV_heads": 2,
+  "head_dim": 128,
+  "dtype_bytes": 2,
+  "KV_bytes_per_token": 28672,
+  "measurements": [
+    {
+      "length": 128,
+      "max_abs_error": 0.4375,
+      "correct": false,
+      "KV_bytes_one_request": 4587520,
+      "KV_bytes_eight_requests": 36700160
+    },
+    {
+      "length": 512,
+      "max_abs_error": 0.6875,
+      "correct": false,
+      "KV_bytes_one_request": 15597568,
+      "KV_bytes_eight_requests": 124780544
+    }
+  ],
+  "memory_note": "Logical active KV is distinct from allocator reserved bytes and the SGLang preallocated pool; weights also occupy process VRAM."
+}

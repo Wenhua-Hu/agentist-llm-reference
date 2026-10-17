@@ -1,0 +1,136 @@
+{
+  "contract": "llm-lab/1.0",
+  "rubric": "llm-lab/2.0",
+  "commit_sha": "ae9524258a2cee3bcc0041945217bf917cb998e4",
+  "automatic_score": 34.0,
+  "automatic_max": 50,
+  "manual_max": 50,
+  "checks": [
+    {
+      "id": "reproduce",
+      "title": "干净环境重建",
+      "points": 10,
+      "max": 10,
+      "detail": "首次就绪；重复启动通过。"
+    },
+    {
+      "id": "api",
+      "title": "服务接口",
+      "points": 10,
+      "max": 10,
+      "detail": "鉴权/模型信息/非流式/流式与 usage：{\"health\": true, \"auth\": true, \"models\": true, \"info\": true, \"nonstream\": true}"
+    },
+    {
+      "id": "quality",
+      "title": "结构化任务正确性",
+      "points": 0,
+      "max": 10,
+      "detail": "成功率 100.0%，对全部请求的正确率 0.0%。"
+    },
+    {
+      "id": "performance",
+      "title": "连续批处理与 SLO 性能对照",
+      "points": 9,
+      "max": 15,
+      "detail": "对照组覆盖 6/6；可靠性与正确性 0/6；成对延迟/SLO 证据 3/3。吞吐提升幅度不计分，usage 未独立验证。"
+    },
+    {
+      "id": "agent",
+      "title": "Agent 行为验收",
+      "points": 5.0,
+      "max": 5,
+      "detail": "10/10 个新任务完成；真实调用链待项目验收复核。"
+    }
+  ],
+  "performance": [
+    {
+      "profile": "baseline",
+      "concurrency": 1,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 0,
+      "ttft_p95_ms": 56.41092685982585,
+      "e2e_p95_ms": 465.9919189289212,
+      "tpot_p95_ms": 13.846482832117804,
+      "output_tokens_per_second": 64.55445687736147,
+      "quality_goodput": 0,
+      "usage_verified": false
+    },
+    {
+      "profile": "baseline",
+      "concurrency": 4,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 0,
+      "ttft_p95_ms": 1410.3366541676223,
+      "e2e_p95_ms": 1798.7197237089276,
+      "tpot_p95_ms": 13.567540245795888,
+      "output_tokens_per_second": 66.4244957881876,
+      "quality_goodput": 0,
+      "usage_verified": false
+    },
+    {
+      "profile": "baseline",
+      "concurrency": 8,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 0,
+      "ttft_p95_ms": 3124.2081513628364,
+      "e2e_p95_ms": 3493.131855968386,
+      "tpot_p95_ms": 13.120413408614695,
+      "output_tokens_per_second": 67.31511839399161,
+      "quality_goodput": 0,
+      "usage_verified": false
+    },
+    {
+      "profile": "optimized",
+      "concurrency": 1,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 0,
+      "ttft_p95_ms": 52.73586604744196,
+      "e2e_p95_ms": 466.79597394540906,
+      "tpot_p95_ms": 13.865580848817315,
+      "output_tokens_per_second": 64.92278072639425,
+      "quality_goodput": 0,
+      "usage_verified": false
+    },
+    {
+      "profile": "optimized",
+      "concurrency": 4,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 0,
+      "ttft_p95_ms": 92.21843583509326,
+      "e2e_p95_ms": 522.4565551616251,
+      "tpot_p95_ms": 15.396117987432357,
+      "output_tokens_per_second": 237.22158605723803,
+      "quality_goodput": 0,
+      "usage_verified": false
+    },
+    {
+      "profile": "optimized",
+      "concurrency": 8,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 0,
+      "ttft_p95_ms": 99.07320467755198,
+      "e2e_p95_ms": 525.5965352989733,
+      "tpot_p95_ms": 15.178221133377019,
+      "output_tokens_per_second": 461.75874303670696,
+      "quality_goodput": 0,
+      "usage_verified": false
+    }
+  ],
+  "setup_seconds": 197.06369163282216,
+  "notes": [
+    "自动评分最高 50 分；项目验收复核最高 50 分（KV 15、前缀复用 15、FlashAttention 15、解释 5）。自动分不是最终评测结果。",
+    "TTFT/E2E 使用客户端时钟；TPOT 和 token 吞吐依赖服务返回的 usage，尚未经独立 tokenizer 验证。",
+    "同一配置的三轮请求合并计算 p95；吞吐量为总成功输出 token / 三轮测量窗口总时长。",
+    "闭环并发负载；SLO 为 TTFT 200ms、E2E 1500ms。不同硬件和输入的分数不作速度排名。",
+    "Agent 自动项仅验证外部行为和声明的工具轨迹，真实模型调用与工具执行纳入项目验收复核。"
+  ],
+  "workload_sha256": "3867093d8cd31d6c7152af85b887de369f601e605079c5a95e1ea2bbce63be91",
+  "hardware": "NVIDIA A10, GPU-5b996f3a-b1f7-d0ce-936a-d1bee91f9366, 570.148.08, 23028 MiB",
+  "elapsed_seconds": 466.04518279479817
+}

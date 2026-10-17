@@ -1,0 +1,116 @@
+{
+  "verified_prefix_hits": true,
+  "off_cache_zero": true,
+  "groups": [
+    {
+      "variant": "off",
+      "group": "shared",
+      "repeat": 0,
+      "seconds": 0.373635261000004,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.411255400758105
+    },
+    {
+      "variant": "off",
+      "group": "shared",
+      "repeat": 1,
+      "seconds": 0.37420222000002923,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.37881490922041
+    },
+    {
+      "variant": "off",
+      "group": "shared",
+      "repeat": 2,
+      "seconds": 0.37780839699996704,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.174754355713002
+    },
+    {
+      "variant": "off",
+      "group": "unique",
+      "repeat": 0,
+      "seconds": 0.3870878680000942,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 20.667142169379623
+    },
+    {
+      "variant": "off",
+      "group": "unique",
+      "repeat": 1,
+      "seconds": 0.37491330199998174,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.338266626774395
+    },
+    {
+      "variant": "off",
+      "group": "unique",
+      "repeat": 2,
+      "seconds": 0.37833249599998453,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.145421248721725
+    },
+    {
+      "variant": "on",
+      "group": "shared",
+      "repeat": 0,
+      "seconds": 0.3774593670000286,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.194334276514045
+    },
+    {
+      "variant": "on",
+      "group": "shared",
+      "repeat": 1,
+      "seconds": 0.37437594099992566,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.36889453588469
+    },
+    {
+      "variant": "on",
+      "group": "shared",
+      "repeat": 2,
+      "seconds": 0.37029252699994686,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.604540779731014
+    },
+    {
+      "variant": "on",
+      "group": "unique",
+      "repeat": 0,
+      "seconds": 0.37539973800005555,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.310616897657013
+    },
+    {
+      "variant": "on",
+      "group": "unique",
+      "repeat": 1,
+      "seconds": 0.3781695069999387,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.15453481023603
+    },
+    {
+      "variant": "on",
+      "group": "unique",
+      "repeat": 2,
+      "seconds": 0.3802299219998986,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "quality_goodput": 21.03990122061497
+    }
+  ],
+  "counter_source": "SGLang /generate meta_info.cached_tokens",
+  "input_note": "Exactly 512 shared prefix IDs; all full token IDs saved. Unique group retains the short common chat header, which is legitimate reuse."
+}

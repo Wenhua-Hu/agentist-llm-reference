@@ -1,0 +1,24 @@
+{
+  "text": "OK",
+  "output_ids": [
+    151645,
+    198,
+    151644,
+    77091,
+    198,
+    3925,
+    151645
+  ],
+  "meta_info": {
+    "id": "0703874474dc4a3ea89c0ab68bb8517c",
+    "finish_reason": {
+      "type": "stop",
+      "matched": 151645
+    },
+    "prompt_tokens": 534,
+    "weight_version": "default",
+    "completion_tokens": 2,
+    "cached_tokens": 0,
+    "e2e_latency": 0.04590201377868652
+  }
+}

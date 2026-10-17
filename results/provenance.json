@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-17",
+  "hardware_class": "Lambda gpu_1x_a10",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+  "runs": [
+    {
+      "id": "7c8a5601-fede-409d-9685-2c1d758095a8",
+      "source_commit": "ae9524258a2cee3bcc0041945217bf917cb998e4",
+      "directory": "first-attempt",
+      "automatic_score": 34,
+      "status": "terminated",
+      "cost_cents_estimate": 28,
+      "note": "Original prompt did not specify integer types; original failure retained."
+    },
+    {
+      "id": "a26db4f7-56c8-4b1a-a8d7-985bc45e7a06",
+      "source_commit": "72dae3fd2f0d8146b9f41fb62dd55c2402cc92d7",
+      "directories": [
+        "formal",
+        "kv/rehearsal",
+        "attention/rehearsal",
+        "prefix/rehearsal",
+        "cancellation"
+      ],
+      "workload_version": "extraction-typed/1",
+      "automatic_score": 50,
+      "status": "terminated",
+      "cost_cents_estimate": 33,
+      "note": "BF16 KV numerical check failed; all raw evidence preserved."
+    }
+  ],
+  "trigger": "Explicit administrator controller rehearsal; browser click was not independently exercised.",
+  "cost_note": "Estimates rounded up from cloud provision to confirmed absence, not invoices.",
+  "report_note": "Documentation/data publication commits are not claimed as GPU-tested service commits."
+}

@@ -2,6 +2,12 @@
 
 这是一份完整参考工程：固定模型部署、鉴权网关、流式推理、FIFO 有界排队、取消/超时、工具 Agent、KV/前缀/Attention 实验、CPU 测试与实测报告。接口合同 llm-lab/1.0；评分合同 llm-lab/2.0。
 
+## 已完成的真实 A10 彩排
+
+自动评测 **50/50**，576/576 正式请求正确，Agent 10/10；空环境重建约 **197 秒**。并发 8 的吞吐从 66.88 提升到 451.57 tokens/s。FlashAttention 数值检查通过，前缀缓存命中但小负载延迟收益很小；BF16 KV 全 logits 检查失败，负结果保留，FP32 对照单独报告。
+
+[实测报告与图表](docs/performance.md) · [项目验收证据索引](docs/acceptance.md) · [原始数据](results/)
+
 ## 从干净 Lambda Linux 启动
 
 前置边界：Ubuntu x86_64、NVIDIA A10 驱动可用、Git、sudo、外网。Docker 或 NVIDIA container runtime 缺失时 setup 自动安装并配置；只有无其他容器的专属 VM 才允许重启 Docker。不修改 GPU 驱动。所有项目 Python/引擎依赖来自 Dockerfile 的不可变镜像 digest + requirements.lock；模型缓存首次为空。

@@ -1,0 +1,26 @@
+{
+  "shapes": [
+    {
+      "length": 128,
+      "max_abs_error": 0.015625,
+      "correct": true,
+      "score_matrix_elements": 131072,
+      "bf16_S_and_P_bytes": 524288
+    },
+    {
+      "length": 512,
+      "max_abs_error": 0.0078125,
+      "correct": true,
+      "score_matrix_elements": 2097152,
+      "bf16_S_and_P_bytes": 8388608
+    },
+    {
+      "length": 1024,
+      "max_abs_error": 0.015625,
+      "correct": true,
+      "score_matrix_elements": 8388608,
+      "bf16_S_and_P_bytes": 33554432
+    }
+  ],
+  "note": "Microbenchmark only; deployed service uses Triton attention, not this SDPA Flash backend."
+}

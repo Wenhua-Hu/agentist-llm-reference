@@ -1,0 +1,137 @@
+{
+  "contract": "llm-lab/1.0",
+  "rubric": "llm-lab/2.0",
+  "workload_version": "extraction-typed/1",
+  "commit_sha": "72dae3fd2f0d8146b9f41fb62dd55c2402cc92d7",
+  "automatic_score": 50.0,
+  "automatic_max": 50,
+  "manual_max": 50,
+  "checks": [
+    {
+      "id": "reproduce",
+      "title": "干净环境重建",
+      "points": 10,
+      "max": 10,
+      "detail": "首次就绪；重复启动通过。"
+    },
+    {
+      "id": "api",
+      "title": "服务接口",
+      "points": 10,
+      "max": 10,
+      "detail": "鉴权/模型信息/非流式/流式与 usage：{\"health\": true, \"auth\": true, \"models\": true, \"info\": true, \"nonstream\": true}"
+    },
+    {
+      "id": "quality",
+      "title": "结构化任务正确性",
+      "points": 10,
+      "max": 10,
+      "detail": "成功率 100.0%，对全部请求的正确率 100.0%。"
+    },
+    {
+      "id": "performance",
+      "title": "连续批处理与 SLO 性能对照",
+      "points": 15,
+      "max": 15,
+      "detail": "对照组覆盖 6/6；可靠性与正确性 6/6；成对延迟/SLO 证据 3/3。吞吐提升幅度不计分，usage 未独立验证。"
+    },
+    {
+      "id": "agent",
+      "title": "Agent 行为验收",
+      "points": 5.0,
+      "max": 5,
+      "detail": "10/10 个新任务完成；真实调用链待项目验收复核。"
+    }
+  ],
+  "performance": [
+    {
+      "profile": "baseline",
+      "concurrency": 1,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 96,
+      "ttft_p95_ms": 52.17762105166912,
+      "e2e_p95_ms": 463.13671208918095,
+      "tpot_p95_ms": 13.683158039514508,
+      "output_tokens_per_second": 65.5270407471377,
+      "quality_goodput": 2.249855476296574,
+      "usage_verified": false
+    },
+    {
+      "profile": "baseline",
+      "concurrency": 4,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 96,
+      "ttft_p95_ms": 1393.21772987023,
+      "e2e_p95_ms": 1783.4420460276306,
+      "tpot_p95_ms": 14.032615139951993,
+      "output_tokens_per_second": 66.21748114609854,
+      "quality_goodput": 0.07104879951298126,
+      "usage_verified": false
+    },
+    {
+      "profile": "baseline",
+      "concurrency": 8,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 96,
+      "ttft_p95_ms": 3131.314237136394,
+      "e2e_p95_ms": 3513.6334779672325,
+      "tpot_p95_ms": 13.973294823829617,
+      "output_tokens_per_second": 66.88409638123936,
+      "quality_goodput": 0.07176405191120103,
+      "usage_verified": false
+    },
+    {
+      "profile": "optimized",
+      "concurrency": 1,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 96,
+      "ttft_p95_ms": 53.255531936883926,
+      "e2e_p95_ms": 462.01431192457676,
+      "tpot_p95_ms": 13.807670396220471,
+      "output_tokens_per_second": 65.05749287573492,
+      "quality_goodput": 2.2337336609694396,
+      "usage_verified": false
+    },
+    {
+      "profile": "optimized",
+      "concurrency": 4,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 96,
+      "ttft_p95_ms": 90.35408915951848,
+      "e2e_p95_ms": 550.1318052411079,
+      "tpot_p95_ms": 15.918401918107909,
+      "output_tokens_per_second": 234.16762191154612,
+      "quality_goodput": 8.040090022714029,
+      "usage_verified": false
+    },
+    {
+      "profile": "optimized",
+      "concurrency": 8,
+      "requests": 96,
+      "successful": 96,
+      "quality_pass": 96,
+      "ttft_p95_ms": 90.8952858299017,
+      "e2e_p95_ms": 542.8871866315603,
+      "tpot_p95_ms": 16.495982218267663,
+      "output_tokens_per_second": 451.5701311943262,
+      "quality_goodput": 15.504553860749397,
+      "usage_verified": false
+    }
+  ],
+  "setup_seconds": 197.19391814200208,
+  "notes": [
+    "自动评分最高 50 分；项目验收复核最高 50 分（KV 15、前缀复用 15、FlashAttention 15、解释 5）。自动分不是最终评测结果。",
+    "TTFT/E2E 使用客户端时钟；TPOT 和 token 吞吐依赖服务返回的 usage，尚未经独立 tokenizer 验证。",
+    "同一配置的三轮请求合并计算 p95；吞吐量为总成功输出 token / 三轮测量窗口总时长。",
+    "闭环并发负载；SLO 为 TTFT 200ms、E2E 1500ms。不同硬件和输入的分数不作速度排名。",
+    "Agent 自动项仅验证外部行为和声明的工具轨迹，真实模型调用与工具执行纳入项目验收复核。"
+  ],
+  "workload_sha256": "232e48e5b2b1d09a06572ff25d2552da01aa9281f54e9628571878d2fd1719f6",
+  "hardware": "NVIDIA A10, GPU-7b66e3ce-1b3b-41be-1690-43dedc2c3df1, 570.148.08, 23028 MiB",
+  "elapsed_seconds": 466.32705756789073
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "command": "sudo -n docker exec agentist-llm-reference python3 -m experiments.cancellation",
+    "ok": true
+  },
+  {
+    "command": "bash experiments/run.sh --case kv --out results/kv/rehearsal",
+    "ok": false
+  },
+  {
+    "command": "bash experiments/run.sh --case attention --out results/attention/rehearsal",
+    "ok": true
+  },
+  {
+    "command": "bash experiments/run.sh --case prefix --out results/prefix/rehearsal",
+    "ok": true
+  }
+]
