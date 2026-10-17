@@ -17,7 +17,8 @@ def engine_command(config, cache=None):
         '--max-running-requests', str(config['max_running_requests']),
         '--max-total-tokens', str(config['max_total_tokens']),
         '--max-prefill-tokens', str(config['max_prefill_tokens']),
-        '--attention-backend', config['attention_backend'], '--enable-metrics',
+        '--attention-backend', config['attention_backend'],
+        '--sampling-defaults', config.get('sampling_defaults', 'openai'), '--enable-metrics',
         '--stream-interval', '1']
     if not config.get('cuda_graph', False):
         args += ['--disable-cuda-graph']

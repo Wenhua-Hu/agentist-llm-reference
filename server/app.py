@@ -188,6 +188,9 @@ def create_app(backend=None, key=None, config=None):
         except asyncio.TimeoutError:
             status = 'timeout'
             raise HTTPException(504, 'total request deadline exceeded')
+        except httpx.TimeoutException:
+            status = 'timeout'
+            raise HTTPException(504, 'engine request timed out')
         except httpx.HTTPStatusError as exc:
             raise HTTPException(exc.response.status_code if exc.response.status_code in (400, 413, 422, 429) else 502,
                                 'engine rejected request')
@@ -225,6 +228,8 @@ def create_app(backend=None, key=None, config=None):
             raise HTTPException(422, 'invalid model plan or tool arguments')
         except asyncio.TimeoutError:
             raise HTTPException(504, 'agent deadline exceeded')
+        except httpx.TimeoutException:
+            raise HTTPException(504, 'engine request timed out')
         except httpx.HTTPError:
             raise HTTPException(503, 'engine unavailable')
         finally:

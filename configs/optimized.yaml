@@ -10,3 +10,4 @@ gateway_slots: 32
 gateway_queue: 64
 request_timeout: 30
 cuda_graph: true
+sampling_defaults: openai

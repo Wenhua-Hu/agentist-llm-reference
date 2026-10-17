@@ -27,4 +27,9 @@ def configuration():
         if os.environ['ATTENTION_BACKEND'] not in ('triton', 'flashinfer'):
             raise ValueError('Unsupported ATTENTION_BACKEND')
         cfg['attention_backend'] = os.environ['ATTENTION_BACKEND']
+    # These are SGLang 0.5.9's effective defaults under the explicit OpenAI policy.
+    # The API accepts temperature overrides; only its request default is zero.
+    if cfg.get('sampling_defaults') == 'openai':
+        cfg.update(repetition_penalty=1.0, top_p=1.0, top_k=-1,
+                   request_temperature_default=0.0)
     return profile, cfg

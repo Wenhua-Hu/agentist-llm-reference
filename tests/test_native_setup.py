@@ -217,3 +217,16 @@ def test_direct_constraints_match_captured_native_closure():
     for name in native.DEPENDENCY_FILES[:-1]:
         for package, version in pins(name).items():
             assert full[package] == version, (name, package)
+
+
+@pytest.mark.parametrize('profile', ['baseline', 'optimized'])
+def test_both_profiles_disable_hidden_model_sampling_defaults(monkeypatch, profile):
+    monkeypatch.setenv('BENCH_PROFILE', profile)
+    monkeypatch.setenv('MODEL_ID', 'model-fixture')
+    monkeypatch.setenv('MODEL_REVISION', 'revision-fixture')
+    _, cfg = configuration()
+    assert cfg['sampling_defaults'] == 'openai'
+    assert cfg['repetition_penalty'] == cfg['top_p'] == 1.0
+    assert cfg['top_k'] == -1 and cfg['request_temperature_default'] == 0.0
+    args = engine_command(cfg)
+    assert args[args.index('--sampling-defaults')+1] == 'openai'

@@ -41,7 +41,7 @@ curl -N http://127.0.0.1:8000/v1/chat/completions \
 - `setup.sh` / `scripts/native_setup.py` / `server/supervisor.py`：可重建、幂等、进程生命周期。
 - `server/app.py` / `auth.py` / `admission.py` / `streaming.py` / `backend.py`：公开合同、鉴权、排队、真实 SGLang 转发、取消。
 - `agent/`：模型规划 → 白名单 lookup_order → 模型最终回答；不从题目绕过模型生成答案。
-- `configs/`：baseline 1 个 running request / 8192 KV tokens / Triton / prefix off / CUDA Graph off；optimized 32 / 16384 / FlashInfer / prefix on / CUDA Graph on。两组固定模型、BF16、4096 上下文和网关 32 slots/64 queue。总 profile 比较不能归因到单项；用 `MAX_RUNNING_REQUESTS`、`PREFIX_CACHE`、`ATTENTION_BACKEND` 做受控消融。
+- `configs/`：baseline 1 个 running request / 8192 KV tokens / Triton / prefix off / CUDA Graph off；optimized 32 / 16384 / FlashInfer / prefix on / CUDA Graph on。两组固定模型、BF16、4096 上下文和网关 32 slots/64 queue。两组显式使用 `sampling_defaults=openai`，请求温度固定 0，避免继承模型文件里的重复惩罚；见[采样策略](docs/sampling-policy.md)。总 profile 比较不能归因到单项；用 `MAX_RUNNING_REQUESTS`、`PREFIX_CACHE`、`ATTENTION_BACKEND` 做受控消融。
 - `experiments/`：KV Cache、RadixAttention、SDPA math/flash、服务压测、GPU 取消验证与 SVG。
 - `tests/` / `.github/workflows/ci.yml`：只有 CPU 测试，不申请 GPU。
 - `docs/` / `results/`：架构、运维、性能结论与原始证据。见 `docs/performance.md` 实测状态。

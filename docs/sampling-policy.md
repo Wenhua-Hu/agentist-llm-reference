@@ -1,0 +1,11 @@
+# 显式采样策略与数值复制
+
+baseline 和 optimized 都通过 `--sampling-defaults openai` 启动 SGLang；`/info.config.sampling_defaults` 报告 `openai`。`/info.config` 同时报告该策略对应的 repetition_penalty、top_p、top_k 和 request_temperature_default；它们是启动配置声明，评测还应核对引擎实际参数。项目评测请求明确发送 `temperature=0`，普通 API 请求仍允许显式调整温度。SGLang 0.5.9 在此策略下使用中性的缺省值：repetition_penalty=1.0、top_p=1.0、top_k=-1。用户消息和输出内容由网关原样转发；网关不会修补数字或把模型答案替换成标准答案。
+
+这项配置避免一个已确认的隐式差异：固定模型 `Qwen/Qwen2.5-1.5B-Instruct` revision `989aa7980e4cf806f80c7fef2b1adb7bc71aa306` 的 generation_config.json 包含 repetition_penalty=1.1、temperature=0.7、top_p=0.8、top_k=20；SGLang 0.5.9 默认 `sampling_defaults=model`，显式请求 temperature=0 只覆盖温度，不会自动关闭其他模型缺省参数。
+
+Daytona 运行 `39065b3b-fa51-4078-8b5c-ea322efa9fa8`、源码 `ce1fa35c2592381a201b5ccf4f2a599d10a8c93b` 的只读检查已确认运行中引擎采用 `model`，本地缓存重复惩罚为 1.1。该轮原始数字复制错误、延迟和吞吐均保留，不能修改成中性采样结果。错误是否主要由重复惩罚导致，需要新环境、新 commit 的实测对照；目前不能声称因果已经证明。
+
+新策略只固定生成参数，不降低正确性门槛，不改变既定模型、模型 revision、BF16 精度、输入负载、输出上限或标准答案。最终验收需要在该显式策略下重新标定。若将来要改变采样策略，必须更新任务书、配置和验收版本，不能在 baseline/optimized 之间偷偷使用不同策略。
+
+网关在响应开始前遇到 HTTPX 连接、读取、写入或连接池超时，会返回 504；其他连接故障仍返回 503。已经开始的 SSE 流遇到超时或故障会发送 error 且不发送 DONE，避免把半截输出算作成功。超时本身不证明是容量不足，评测需结合负载、引擎状态和恢复情况判断。

@@ -126,3 +126,90 @@ async def test_agent_really_calls_twice_and_preserves_model_answer():
 def test_tool_whitelist():
     with pytest.raises(ValueError):execute('shell',{'command':'pwd'},{})
     with pytest.raises(ValueError):execute('lookup_order',{'order_id':'missing'},{'orders':{}})
+
+
+@pytest.mark.asyncio
+async def test_gateway_payload_and_sse_preserve_repeated_digits():
+    from server.app import Chat
+    from server.backend import Backend
+    expected = json.dumps({'records': [{'id': 41550}, {'id': 69430}, {'id': 50085}]})
+    messages = [{'role': 'user', 'content': 'Copy exactly 41550, 69430, 50085. Keep every digit.'}]
+    captured = []
+    def engine(request):
+        captured.append(json.loads(request.content))
+        chunks = [json.dumps({'choices': [{'delta': {'content': char}}]}) for char in expected]
+        chunks += [json.dumps({'choices': [{'delta': {}, 'finish_reason': 'stop'}],
+                               'usage': {'completion_tokens': len(expected)}}), '[DONE]']
+        return httpx.Response(200, headers={'content-type': 'text/event-stream'},
+                              text=''.join('data: '+chunk+'\n\n' for chunk in chunks))
+    backend = Backend()
+    await backend.client.aclose()
+    backend.client = httpx.AsyncClient(base_url='http://engine', transport=httpx.MockTransport(engine))
+    payload = Chat(model=MODEL, messages=messages, max_tokens=384, temperature=0, stream=True).model_dump(exclude_none=True)
+    response = await backend.stream(payload, 'copy-test')
+    parts = []
+    async for event in relay(response, time.monotonic()+2):
+        data = event[5:].strip()
+        if data != '[DONE]':
+            parts.extend(c.get('delta', {}).get('content', '') for c in json.loads(data).get('choices', []))
+    await response.aclose()
+    await backend.close()
+    assert ''.join(parts) == expected
+    assert captured[0]['messages'] == messages
+    assert captured[0]['max_tokens'] == 384 and captured[0]['temperature'] == 0
+    assert captured[0]['rid'] == 'copy-test'
+
+
+@pytest.mark.parametrize('profile', ['baseline', 'optimized'])
+def test_info_declares_effective_neutral_sampling_policy(monkeypatch, profile):
+    monkeypatch.setenv('BENCH_PROFILE', profile)
+    with TestClient(create_app(FakeBackend(), key='k')) as client:
+        cfg = client.get('/info', headers={'Authorization': 'Bearer k'}).json()['config']
+        assert cfg['sampling_defaults'] == 'openai'
+        assert cfg['repetition_penalty'] == cfg['top_p'] == 1.0
+        assert cfg['top_k'] == -1 and cfg['request_temperature_default'] == 0.0
+
+
+@pytest.mark.parametrize('failure,expected', [(httpx.ReadTimeout, 504),
+    (httpx.ConnectTimeout, 504), (httpx.WriteTimeout, 504),
+    (httpx.PoolTimeout, 504), (httpx.ConnectError, 503)])
+@pytest.mark.parametrize('route,stream', [('/v1/chat/completions', False),
+    ('/v1/chat/completions', True), ('/agent/run', False)])
+def test_upstream_timeouts_distinct_from_transport_failure(failure, expected, route, stream):
+    class Failing(FakeBackend):
+        async def complete(self, payload, rid):
+            raise failure('engine failure fixture')
+        async def stream(self, payload, rid):
+            raise failure('engine failure fixture')
+    backend = Failing()
+    app = create_app(backend, key='k')
+    body = payload(stream=stream) if route.endswith('completions') else {
+        'task': 'Find order X91', 'tool_data': {'orders': {'X91': {'status': 'shipped', 'eta_days': 6}}}}
+    with TestClient(app) as client:
+        result = client.post(route, headers={'Authorization': 'Bearer k'}, json=body)
+        assert result.status_code == expected
+        assert app.state.gate.active == app.state.gate.queued == 0
+        if route.endswith('completions'):
+            assert app.state.metrics.counts['timeout' if expected == 504 else 'failed'] == 1
+    assert backend.aborts
+
+
+def test_timeout_after_stream_headers_remains_explicit_stream_error():
+    class FailingStream(FakeResponse):
+        async def aiter_lines(self):
+            yield 'data: ' + json.dumps({'choices': [{'delta': {'content': 'partial'}}]})
+            raise httpx.ReadTimeout('stream interrupted')
+    class Failing(FakeBackend):
+        async def stream(self, payload, rid):
+            return FailingStream([])
+    backend = Failing()
+    app = create_app(backend, key='k')
+    with TestClient(app) as client:
+        result = client.post('/v1/chat/completions', headers={'Authorization': 'Bearer k'},
+                             json=payload(stream=True))
+        assert result.status_code == 200
+        assert 'partial' in result.text and '"error"' in result.text
+        assert '[DONE]' not in result.text
+        assert app.state.gate.active == app.state.gate.queued == 0
+        assert app.state.metrics.counts['stream_error'] == 1
+    assert backend.aborts
