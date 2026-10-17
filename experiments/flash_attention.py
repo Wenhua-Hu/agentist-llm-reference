@@ -41,5 +41,5 @@ def main():
                 write(evidence.out/f'{name}-{length}-trace-sha256.json', {'sha256':hashlib.sha256(trace.read_bytes()).hexdigest()})
         summaries.append({'length':length,'max_abs_error':error,'correct':valid,
                           'score_matrix_elements':8*length*length,'bf16_S_and_P_bytes':2*8*length*length*2})
-    evidence.finish({'shapes':summaries,'note':'Microbenchmark only; deployed service uses Triton attention, not this SDPA Flash backend.'})
+    evidence.finish({'shapes':summaries,'note':'Microbenchmark only; optimized service uses FlashInfer, baseline uses Triton. Neither is claimed to be this PyTorch SDPA Flash implementation.'})
 if __name__=='__main__': entry(main)

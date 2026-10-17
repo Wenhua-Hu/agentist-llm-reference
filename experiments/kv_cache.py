@@ -6,7 +6,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from .common import Evidence, tensor_hash, entry
 
 def main():
-    dtype_name=os.environ.get('KV_DTYPE','bfloat16')
+    dtype_name=os.environ.get('KV_DTYPE','float32')
     if dtype_name not in ('bfloat16','float32'): raise ValueError('KV_DTYPE must be bfloat16 or float32')
     dtype=getattr(torch,dtype_name)
     atol,rtol=(.15,.02) if dtype_name=='bfloat16' else (.001,.0001)
@@ -26,14 +26,14 @@ def main():
     with torch.inference_mode():
         for length in parameters['lengths']:
             prompt=ids[:,:length]
-            generated=model.generate(prompt,max_new_tokens=32,min_new_tokens=32,do_sample=False,
+            generated=model.generate(prompt,attention_mask=torch.ones_like(prompt),max_new_tokens=32,min_new_tokens=32,do_sample=False,
                 use_cache=True,pad_token_id=tokenizer.eos_token_id)
             continuation=generated[:,length:length+32]
             assert continuation.shape[-1]==32
             def replay(use_cache, capture=False):
                 cache=None; full=prompt; logits=[]
                 if use_cache:
-                    prefill=model(prompt,use_cache=True)
+                    prefill=model(prompt,attention_mask=torch.ones_like(prompt),use_cache=True)
                     cache=prefill.past_key_values
                     del prefill
                 torch.cuda.synchronize(); torch.cuda.reset_peak_memory_stats()
@@ -41,7 +41,7 @@ def main():
                 for i in range(32):
                     token=continuation[:,i:i+1]
                     full=torch.cat([full,token],dim=1)
-                    result=model(token if use_cache else full,past_key_values=cache,use_cache=use_cache)
+                    result=model(token if use_cache else full,attention_mask=torch.ones_like(full),past_key_values=cache,use_cache=use_cache)
                     if use_cache: cache=result.past_key_values
                     if capture: logits.append(result.logits[:,-1,:].float().clone())
                 torch.cuda.synchronize()

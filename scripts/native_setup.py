@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import subprocess
 import sys
 import time
@@ -49,6 +50,28 @@ def stop_owned():
 
 def run(args, **kwargs):
     subprocess.run(list(map(str, args)), check=True, **kwargs)
+
+
+def ensure_build_prerequisites(python):
+    """Triton/FlashInfer compile CPython extensions even with cached wheels."""
+    metadata = json.loads(subprocess.check_output([python, '-c',
+        'import json,sys,sysconfig;print(json.dumps({'
+        '"version":"%s.%s"%sys.version_info[:2],'
+        '"include":sysconfig.get_path("include")}))'], text=True))
+    header = Path(metadata['include']) / 'Python.h'
+    if header.is_file() and shutil.which('cc') and shutil.which('c++'):
+        return
+    if not shutil.which('apt-get'):
+        raise RuntimeError('Missing Python.h or compiler; this installer requires Ubuntu apt-get')
+    privilege = [] if os.geteuid() == 0 else ['sudo', '-n']
+    if privilege and not shutil.which('sudo'):
+        raise RuntimeError('Missing build dependencies require passwordless sudo')
+    print('Installing Python development headers and native build tools for runtime JIT', flush=True)
+    run([*privilege, 'env', 'DEBIAN_FRONTEND=noninteractive', 'apt-get', 'update', '-qq'])
+    run([*privilege, 'env', 'DEBIAN_FRONTEND=noninteractive', 'apt-get', 'install', '-y',
+         '--no-install-recommends', 'build-essential', 'python' + metadata['version'] + '-dev'])
+    if not header.is_file() or not shutil.which('cc') or not shutil.which('c++'):
+        raise RuntimeError('Python headers/compiler still unavailable for selected runtime: ' + str(header))
 
 
 def runtime_versions(python):
@@ -145,6 +168,7 @@ def main():
             engine_python = str(gateway_python)
             run([engine_python, '-m', 'pip', 'install', '--disable-pip-version-check',
                  '-r', 'requirements-runtime.lock', '-r', 'requirements-analysis.lock'])
+        ensure_build_prerequisites(engine_python)
         versions = runtime_versions(engine_python)
         validate_versions(versions)
         # Validate real CUDA execution, not just a driver visible to nvidia-smi.

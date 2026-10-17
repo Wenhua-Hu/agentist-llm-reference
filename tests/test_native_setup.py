@@ -84,3 +84,34 @@ def test_startup_log_forwarding_redacts_split_secret(tmp_path, monkeypatch, caps
     assert 'secret' not in output and '[REDACTED]' in output
     native.forward_logs(state)
     assert capsys.readouterr().out == ''
+
+
+def test_missing_runtime_headers_are_installed_for_selected_python(tmp_path, monkeypatch):
+    include = tmp_path/'include'
+    include.mkdir()
+    monkeypatch.setattr(native.subprocess, 'check_output', lambda *a, **kw:
+                        json.dumps({'version': '3.12', 'include': str(include)}))
+    monkeypatch.setattr(native.os, 'geteuid', lambda: 1000)
+    monkeypatch.setattr(native.shutil, 'which', lambda name: '/usr/bin/' + name)
+    calls = []
+    def install(args):
+        calls.append(args)
+        if 'install' in args:
+            (include/'Python.h').write_text('/* test header */')
+    monkeypatch.setattr(native, 'run', install)
+    native.ensure_build_prerequisites('/project/.venv/bin/python')
+    assert len(calls) == 2
+    assert calls[0][:4] == ['sudo', '-n', 'env', 'DEBIAN_FRONTEND=noninteractive']
+    assert calls[1][-2:] == ['build-essential', 'python3.12-dev']
+    native.ensure_build_prerequisites('/project/.venv/bin/python')
+    assert len(calls) == 2  # Repeated setup does not apt-install again.
+
+
+def test_missing_headers_after_package_install_is_fatal(tmp_path, monkeypatch):
+    monkeypatch.setattr(native.subprocess, 'check_output', lambda *a, **kw:
+                        json.dumps({'version': '3.12', 'include': str(tmp_path)}))
+    monkeypatch.setattr(native.os, 'geteuid', lambda: 0)
+    monkeypatch.setattr(native.shutil, 'which', lambda name: '/usr/bin/' + name)
+    monkeypatch.setattr(native, 'run', lambda _: None)
+    with pytest.raises(RuntimeError, match='still unavailable'):
+        native.ensure_build_prerequisites('/unsupported/python')

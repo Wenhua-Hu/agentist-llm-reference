@@ -25,7 +25,7 @@ if [[ -f .runtime/runtime.json ]]; then
   mkdir -p "$out"
   engine_python=$(python3 -c 'import json; print(json.load(open(".runtime/runtime.json"))["engine_python"])')
   export SGLANG_PYTHON="$engine_python" SOURCE_COMMIT="$(git rev-parse HEAD)"
-  export HF_HUB_DISABLE_XET=1 KV_DTYPE="${KV_DTYPE:-bfloat16}"
+  export HF_HUB_DISABLE_XET=1 KV_DTYPE="${KV_DTYPE:-float32}"
   "$engine_python" -m "experiments.$module" --out "$out"
   echo 'Experiment finished; run setup.sh explicitly to restart serving.'
   exit 0
@@ -40,6 +40,6 @@ mkdir -p "$out"
 sudo -n docker run --rm --gpus all --network host --shm-size 4g --entrypoint python3 \
   -v "$PWD:/app:ro" -v "$PWD/results:/app/results" -v "$HF_HOME:/hf" \
   -e "MODEL_ID=$MODEL_ID" -e "MODEL_REVISION=$MODEL_REVISION" -e HF_HOME=/hf \
-  -e "SOURCE_COMMIT=$(git rev-parse HEAD)" -e HF_HUB_DISABLE_XET=1 -e "KV_DTYPE=${KV_DTYPE:-bfloat16}" \
+  -e "SOURCE_COMMIT=$(git rev-parse HEAD)" -e HF_HUB_DISABLE_XET=1 -e "KV_DTYPE=${KV_DTYPE:-float32}" \
   "$image" -m "experiments.$module" --out "$out"
 echo 'Experiment finished; run setup.sh explicitly to restart serving.'

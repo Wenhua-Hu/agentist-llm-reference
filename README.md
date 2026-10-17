@@ -1,6 +1,6 @@
 # Agentist Project 2 — LLM service reference implementation
 
-这是一份完整参考工程：固定模型部署、鉴权网关、流式推理、FIFO 有界排队、取消/超时、工具 Agent、KV/前缀/Attention 实验、CPU 测试与实测报告。接口合同 llm-lab/1.0；当前评分合同 llm-lab/3.0：自动 95 分，人工验收仅 5 分（工程与优化解释）。KV / prefix / attention 各 15 分由平台实际运行后自动评分。具体调用与字段见[自动评分合同](docs/autograding.md)。
+这是一份完整参考工程：固定模型部署、鉴权网关、流式推理、FIFO 有界排队、取消/超时、工具 Agent、KV/前缀/Attention 实验、CPU 测试与实测报告。接口合同 llm-lab/1.0；当前评分合同 llm-lab/4.0：自动 95 分，人工验收仅 5 分（工程与优化解释）。KV / prefix / attention 各 10 分由平台实际运行后自动评分，并核对最终服务配置；最终服务性能另占 30 分，必须通过标定后的数字门槛。具体调用与字段见[自动评分合同](docs/autograding.md)。
 
 ## 已完成的真实 A10 彩排
 
@@ -10,7 +10,7 @@
 
 ## 从干净 Daytona GPU Linux 启动
 
-前置边界：Linux x86_64、NVIDIA RTX 4090 驱动可用、Git、Python 3.12/venv、外网。`setup.sh` 在项目私有 `.venv` 安装依赖，不使用 Docker、sudo 或 systemd，不修改 GPU 驱动。引擎关键版本见 `requirements-runtime.lock`；可复用平台下载缓存，但项目配置与代码从指定 Git commit 重建。若平台提供已固定版本的引擎解释器，可以显式设置 `SGLANG_PYTHON=/path/to/python`，setup 会检查版本；网关仍使用私有 venv。干净安装和预置运行时必须分别记录，不能混称为同一种冷启动。历史 Lambda 路径保留在 `setup-lambda.sh`，不代表当前配置已在 A10 重测。
+前置边界：Linux x86_64、NVIDIA RTX 4090 驱动可用、Git、Python 3.12/venv、外网。`setup.sh` 在项目私有 `.venv` 安装依赖，不要求 Docker 或 systemd，不修改 GPU 驱动。若缺少与所选 Python 对应的 `Python.h` 或 C/C++ 编译器，setup 会使用非交互 sudo/apt 安装匹配的 Python 开发头文件及 build-essential；基础环境须允许此操作。引擎关键版本见 `requirements-runtime.lock`；可复用平台下载缓存，但项目配置与代码从指定 Git commit 重建。若平台提供已固定版本的引擎解释器，可以显式设置 `SGLANG_PYTHON=/path/to/python`，setup 会检查版本；网关仍使用私有 venv。干净安装和预置运行时必须分别记录，不能混称为同一种冷启动。历史 Lambda 路径保留在 `setup-lambda.sh`，不代表当前配置已在 A10 重测。
 
 ```bash
 git clone https://github.com/mrvgao/agentist-llm-reference.git
@@ -95,10 +95,10 @@ python3 -m venv .venv
 
 ## KV 数值诊断
 
-首次 A10 实测发现 BF16 cache on/off 的全词表 logits 差异超过预设 atol=0.15/rtol=0.02；负结果原样保留，默认命令仍按原阈值返回失败，不修改答案或事后放宽容差。可独立运行 FP32、禁用 TF32 的控制实验定位误差来源：
+历史 A10 和首轮 Daytona 实测均发现 BF16 cache on/off 的全词表 logits 差异超过预设 atol=0.15/rtol=0.02；负结果原样保留，不修改答案或放宽容差。当前 KV 数学等价实验默认使用 FP32，并关闭 TF32，使用更严格的 atol=0.001/rtol=0.0001；最终 SGLang 服务仍固定 BF16。FP32 原理实验不代替 BF16 服务正确性与性能验收。也可以显式重跑 BF16 诊断：
 
 ```bash
-KV_DTYPE=float32 bash experiments/run.sh --case kv --out results/kv-fp32/rehearsal
+KV_DTYPE=bfloat16 bash experiments/run.sh --case kv --out results/kv-bf16/diagnostic-1
 ```
 
 FP32 对照使用预先固定的 atol=0.001/rtol=0.0001，两分支同为 FP32；A10 实测通过，最大误差约 0.00005。其结果不能替代 BF16 验证。两种精度均报告 top-1 agreement 与全词表误差。正式服务仍固定 BF16。
