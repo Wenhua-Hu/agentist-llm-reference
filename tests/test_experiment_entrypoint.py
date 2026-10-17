@@ -17,14 +17,20 @@ def test_kv_entrypoint_defaults_fp32_and_preserves_explicit_bf16(tmp_path):
     for name, script in {
         'git': '#!/usr/bin/env bash\necho fixture-commit\n',
         'flock': '#!/usr/bin/env bash\nexit 0\n',
-        'engine': '#!/usr/bin/env bash\nprintf "%s" "$KV_DTYPE" > "$DTYPE_RECORD"\n'
+        'engine': '#!/usr/bin/env bash\nprintf "%s" "$KV_DTYPE" > "$DTYPE_RECORD"\nninja > "$TOOL_RECORD"\n'
     }.items():
         path = binary/name
         path.write_text(script)
         path.chmod(0o755)
-    (tmp_path/'.runtime/runtime.json').write_text(json.dumps({'engine_python': str(binary/'engine')}))
+    engine_bin = tmp_path/'engine-venv/bin'
+    engine_bin.mkdir(parents=True)
+    ninja = engine_bin/'ninja'
+    ninja.write_text('#!/usr/bin/env bash\necho engine-ninja\n')
+    ninja.chmod(0o755)
+    (tmp_path/'.runtime/runtime.json').write_text(json.dumps({'engine_python': str(binary/'engine'),
+        'engine_bin': str(engine_bin), 'gateway_bin': str(binary)}))
     env = {**os.environ, 'PATH': str(binary)+':'+os.environ['PATH'],
-           'DTYPE_RECORD': str(tmp_path/'dtype')}
+           'DTYPE_RECORD': str(tmp_path/'dtype'), 'TOOL_RECORD': str(tmp_path/'tool')}
     env.pop('KV_DTYPE', None)
     for explicit, expected in [(None, 'float32'), ('bfloat16', 'bfloat16')]:
         if explicit:
@@ -32,3 +38,4 @@ def test_kv_entrypoint_defaults_fp32_and_preserves_explicit_bf16(tmp_path):
         subprocess.run(['bash', 'experiments/run.sh', '--case', 'kv', '--out', 'results/check'],
                        cwd=tmp_path, env=env, check=True, capture_output=True, text=True)
         assert (tmp_path/'dtype').read_text() == expected
+        assert (tmp_path/'tool').read_text().strip() == 'engine-ninja'

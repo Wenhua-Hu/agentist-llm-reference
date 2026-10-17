@@ -149,3 +149,33 @@ def test_legacy_ubuntu_sources_filter_third_party(tmp_path, monkeypatch):
     source = native.ubuntu_sources(tmp_path)
     assert source.suffix == '.list'
     assert source.read_text() == 'deb http://us.archive.ubuntu.com/ubuntu focal main\n'
+
+
+def test_runtime_tools_resolve_with_clean_path_without_activation(tmp_path, monkeypatch):
+    engine_bin = tmp_path/'engine/bin'
+    gateway_bin = tmp_path/'gateway/bin'
+    cuda = tmp_path/'cuda'
+    for folder in (engine_bin, gateway_bin, cuda/'bin'):
+        folder.mkdir(parents=True)
+    for tool, folder in [('ninja', engine_bin), ('cc', gateway_bin), ('c++', gateway_bin), ('nvcc', cuda/'bin')]:
+        path = folder/tool
+        path.write_text('#!/bin/sh\nexit 0\n')
+        path.chmod(0o755)
+    # Simulate venv Python being a symlink to a system interpreter.
+    (engine_bin/'python').symlink_to('/usr/bin/python3')
+    monkeypatch.setenv('PATH', '/a-clean-path-with-no-venv')
+    monkeypatch.setenv('CUDA_HOME', str(cuda))
+    monkeypatch.setattr(native.subprocess, 'check_output', lambda *a, **kw:
+                        json.dumps({'executable': str(engine_bin/'python')}))
+    env = native.configure_runtime_environment(str(engine_bin/'python'), str(gateway_bin/'python'))
+    assert env['engine_bin'] == str(engine_bin)
+    assert os.environ['PATH'].split(os.pathsep)[:3] == [str(engine_bin), str(gateway_bin), str(cuda/'bin')]
+    tools = native.validate_jit_tools()
+    assert tools['ninja'] == str(engine_bin/'ninja')
+    assert tools['nvcc'] == str(cuda/'bin/nvcc')
+
+
+def test_missing_jit_tool_fails_before_model_start(monkeypatch):
+    monkeypatch.setattr(native.shutil, 'which', lambda name: None if name == 'ninja' else '/tools/'+name)
+    with pytest.raises(RuntimeError, match='ninja'):
+        native.validate_jit_tools()

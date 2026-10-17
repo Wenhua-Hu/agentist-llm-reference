@@ -114,6 +114,40 @@ def ensure_build_prerequisites(python):
         raise RuntimeError('Python headers/compiler still unavailable for selected runtime: ' + str(header))
 
 
+def configure_runtime_environment(engine_python, gateway_python):
+    """Calling venv Python does not activate its executable search path."""
+    metadata = json.loads(subprocess.check_output([engine_python, '-c',
+        'import json,sys;print(json.dumps({"executable":sys.executable}))'], text=True))
+    # Do not resolve the Python symlink: /venv/bin/python may target /usr/bin/python.
+    engine_bin = str(Path(metadata['executable']).absolute().parent)
+    gateway_bin = str(Path(gateway_python).absolute().parent)
+    cuda_home = os.environ.get('CUDA_HOME')
+    if not cuda_home and Path('/usr/local/cuda/bin/nvcc').is_file():
+        cuda_home = '/usr/local/cuda'
+    if not cuda_home:
+        nvcc = shutil.which('nvcc')
+        if nvcc:
+            cuda_home = str(Path(nvcc).absolute().parent.parent)
+    if cuda_home and not (Path(cuda_home) / 'bin/nvcc').is_file():
+        raise RuntimeError('CUDA_HOME does not contain the nvcc compiler: ' + cuda_home)
+    entries = [engine_bin, gateway_bin]
+    if cuda_home:
+        os.environ['CUDA_HOME'] = cuda_home
+        entries.append(str(Path(cuda_home) / 'bin'))
+    entries.extend(os.environ.get('PATH', '/usr/bin:/bin').split(os.pathsep))
+    os.environ['PATH'] = os.pathsep.join(dict.fromkeys(entries))
+    return {'engine_bin': engine_bin, 'gateway_bin': gateway_bin, 'cuda_home': cuda_home}
+
+
+def validate_jit_tools():
+    found = {name: shutil.which(name) for name in ('cc', 'c++', 'ninja', 'nvcc')}
+    missing = [name for name, path in found.items() if not path]
+    if missing:
+        raise RuntimeError('Missing native JIT tools after runtime setup: ' + ', '.join(missing))
+    print('Native JIT tools: ' + json.dumps(found), flush=True)
+    return found
+
+
 def runtime_versions(python):
     code = ('import importlib.metadata as m,json;print(json.dumps({' +
             ','.join(repr(n)+':m.version('+repr(n)+')' for n in EXPECTED) + '}))')
@@ -208,7 +242,9 @@ def main():
             engine_python = str(gateway_python)
             run([engine_python, '-m', 'pip', 'install', '--disable-pip-version-check',
                  '-r', 'requirements-runtime.lock', '-r', 'requirements-analysis.lock'])
+        runtime_environment = configure_runtime_environment(engine_python, gateway_python)
         ensure_build_prerequisites(engine_python)
+        jit_tools = validate_jit_tools()
         versions = runtime_versions(engine_python)
         validate_versions(versions)
         # Validate real CUDA execution, not just a driver visible to nvidia-smi.
@@ -216,7 +252,8 @@ def main():
              'x=torch.ones(16,device="cuda");assert x.sum().item()==16;print("CUDA allocation ready")'])
         os.environ['SGLANG_PYTHON'] = engine_python
         (STATE / 'runtime.json').write_text(json.dumps({'engine_python': engine_python,
-            'gateway_python': str(gateway_python), 'versions': versions, 'mode': 'native'}, indent=2))
+            'gateway_python': str(gateway_python), 'versions': versions, 'mode': 'native',
+            **runtime_environment, 'jit_tools': jit_tools}, indent=2))
         logs = {STATE/name: {'offset': (STATE/name).stat().st_size if (STATE/name).exists() else 0,
                              'pending': b''}
                 for name in ('supervisor.log', 'engine.log', 'gateway.log')}

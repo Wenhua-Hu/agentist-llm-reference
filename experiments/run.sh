@@ -24,6 +24,10 @@ if [[ -f .runtime/runtime.json ]]; then
   exec 9>.runtime/setup.lock; flock -w 10 9
   mkdir -p "$out"
   engine_python=$(python3 -c 'import json; print(json.load(open(".runtime/runtime.json"))["engine_python"])')
+  engine_bin=$(python3 -c 'import json,pathlib; r=json.load(open(".runtime/runtime.json")); print(r.get("engine_bin") or pathlib.Path(r["engine_python"]).absolute().parent)')
+  gateway_bin=$(python3 -c 'import json,pathlib; r=json.load(open(".runtime/runtime.json")); print(r.get("gateway_bin") or pathlib.Path(r.get("gateway_python",r["engine_python"])).absolute().parent)')
+  export CUDA_HOME=$(python3 -c 'import json,os; r=json.load(open(".runtime/runtime.json")); print(r.get("cuda_home") or os.environ.get("CUDA_HOME","/usr/local/cuda"))')
+  export PATH="$engine_bin:$gateway_bin:$CUDA_HOME/bin:$PATH"
   export SGLANG_PYTHON="$engine_python" SOURCE_COMMIT="$(git rev-parse HEAD)"
   export HF_HUB_DISABLE_XET=1 KV_DTYPE="${KV_DTYPE:-float32}"
   "$engine_python" -m "experiments.$module" --out "$out"
