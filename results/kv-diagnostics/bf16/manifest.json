@@ -1,0 +1,30 @@
+{
+  "case": "kv",
+  "time": "2026-10-17T21:34:11.808434+00:00",
+  "commit": "01340d52c5f2b72f0502af6ca3906261d846c10e",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+  "parameters": {
+    "lengths": [
+      128,
+      512
+    ],
+    "decode_tokens": 32,
+    "warmup": 1,
+    "repeats": 3,
+    "dtype": "bfloat16",
+    "atol": 0.15,
+    "rtol": 0.02,
+    "tf32": false,
+    "seed": 20261017
+  },
+  "gpu": "NVIDIA A10, GPU-9f854f1e-d921-bd35-e0c3-ecee6e5df5ec, 570.148.08, 23028 MiB",
+  "software": {
+    "torch": "2.8.0+cu126",
+    "transformers": "4.56.1",
+    "sglang": "0.5.2"
+  },
+  "cuda": "12.6",
+  "complete": true,
+  "correctness_pass": false
+}

@@ -10,7 +10,7 @@
 | Agent 真实模型与工具链 | agent/agent.py、agent/tools.py | results/formal/agent.json；源码和网关 model_call 计数 | 10 个随机任务通过；源码供复核 |
 | KV 实现：同模型开关、eval、inference mode、上下文预算、释放路径 | experiments/kv_cache.py、configs/、server/ | manifest；cancellation；docs/architecture.md | 可执行；默认 BF16 检查如实失败 |
 | KV 对照：128/512、固定32步、3重复、交替同步、内存 | experiments/kv_cache.py | results/kv/rehearsal/raw.jsonl | 全12条保留；不以耗时掩盖失败 |
-| KV 机制：logits、容量、活跃/池/总显存、块分配与引用计数 | SOURCES.md；docs/performance.md | summary.json、manifest、取消后 engine 指标 | BF16 数值未通过；FP32 控制另记 |
+| KV 机制：logits、容量、活跃/池/总显存、块分配与引用计数 | SOURCES.md；docs/performance.md | summary.json、manifest、取消后 engine 指标 | BF16 数值未通过；独立 FP32 控制通过，原始证据见 results/kv-diagnostics/ |
 | 前缀部署：锁版本、on/off、清缓存、真实命令与计数 | experiments/prefix_cache.py | on/off-command.json、flush.json、metrics.txt | 通过 |
 | 前缀对照：512前缀、8请求、shared/unique、3重复、cold/hot | 同上 | results/prefix/rehearsal/inputs.json、96条raw | 完成；聊天公共前缀没有隐藏 |
 | 前缀机制：输出正确、token/hash、命中记录、源码、收益/占用 | SOURCES.md；docs/performance.md | cached_tokens；summary.json；engine metrics | 命中成立；小负载收益很小 |

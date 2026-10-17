@@ -2,7 +2,9 @@
 
 2026-10-17，在独占 Lambda NVIDIA A10 上，从没有项目依赖和模型缓存的新 VM 开始，由平台可信控制器 clone 指定 Git commit，执行 `setup.sh`、正式评分和优化实验，再销毁 VM。自动分 **50/50**，576/576 个正式请求成功且答案正确，10/10 个 Agent 任务通过。另 50 分为项目验收复核，本文提供证据，不自行写入最终分。
 
-正式结果对应 commit `72dae3fd2f0d8146b9f41fb62dd55c2402cc92d7`，运行编号 `a26db4f7-56c8-4b1a-a8d7-985bc45e7a06`。发布结果/图表的后续 commit 不代表重新运行 GPU。新 FP32 对照的数据另记版本和运行编号。
+评分器使用 `extraction-typed/1` 工作负载，控制器修正版本为 `5ade1aa1fdccc7dc9deb7247a60b9f0319088fb9`。
+
+正式结果对应 commit `72dae3fd2f0d8146b9f41fb62dd55c2402cc92d7`，运行编号 `a26db4f7-56c8-4b1a-a8d7-985bc45e7a06`。发布结果/图表的后续 commit 不代表重新运行 GPU。第三轮正式复测及 FP32 对照对应 commit `01340d52c5f2b72f0502af6ca3906261d846c10e`，运行编号 `0c135590-8f0e-4148-bf3c-793ff3458347`；正式复测再次 50/50，576/576 正确、Agent 10/10，冷启动 193.57 秒，完整评分 457.67 秒。完整数据在 `results/confirmation/`。
 
 ![实测概览](../results/analysis/overview.png)
 
@@ -42,7 +44,26 @@
 
 BF16 两组均使用 eager attention，预设 atol=0.15/rtol=0.02。虽然计时差异可见，但两组未通过这个数值门槛，**不能把计时比宣布为正确性已验证的优化收益**。所有 12 条记录、失败状态和非零退出保存在 `results/kv/rehearsal/`；不修改容差，也不删除失败。
 
+从数学上看，因果模型的第 ℓ 层旧位置隐藏状态 `hℓ(t)` 只依赖 token 1…t。追加 t+1 后，旧位置不读取未来 token，因此 `Kℓ(t)=hℓ(t)Wkℓ`、`Vℓ(t)=hℓ(t)Wvℓ` 可保留；新位置计算 `Qℓ(t+1)` 并读取 `Kℓ(1:t+1), Vℓ(1:t+1)`。这解释了缓存语义，不保证两种浮点执行路径逐位相同。
+
 Cache 计算改变了矩阵运算形状，低精度结果可能不同；这是一种待对照检验的解释，而不是“缓存天然准确”的证明。[PyTorch 2.8 数值说明](https://docs.pytorch.org/docs/2.8/notes/numerical_accuracy.html) 也指出，相同数学运算的批量与切片计算不保证逐位一致。独立 FP32/禁 TF32 实验使用更严格的预设 atol=0.001/rtol=0.0001，结果单独记录，不替代 BF16 验收。
+
+### FP32 控制：数值检查通过
+
+第三轮在同一 A10 上重新跑 BF16，并运行 FP32/TF32 disabled 对照。两种精度使用同一模型 revision；两档输入的 prompt hash 和固定 continuation hash 均相同。每种精度内部仍只改变 cache on/off；不存在把 BF16 与 FP32 的耗时相除当成缓存收益。
+
+| 精度 | 输入长度 | 无缓存均值 ms | 有缓存均值 ms | max_abs_error | Top-1 一致率 | 预设容差结论 |
+|---|---:|---:|---:|---:|---:|---|
+| BF16 | 128 | 752.20 | 656.55 | 0.4375 | 100% | 失败 |
+| BF16 | 512 | 1563.69 | 655.67 | 0.6875 | 100% | 失败 |
+| FP32 | 128 | 2141.92 | 621.19 | 0.00004387 | 100% | 通过 |
+| FP32 | 512 | 6172.34 | 625.39 | 0.00004959 | 100% | 通过 |
+
+![独立精度控制](../results/analysis/kv-diagnostics.png)
+
+FP32 使用预先固定的 atol=0.001/rtol=0.0001，所有 12 条记录通过。在这两个输入和固定回放上，同精度 FP32 cache on/off 的 decode 时间比分别约 3.45× 与 9.87×。这支持 KV 避免历史重算的机制，也支持 BF16 失败与低精度执行路径有关的解释；它没有定位到具体某个算子的误差来源，更不证明任意输入都等价。正式服务保持 BF16，不能把 FP32 数值检查当成 BF16 全词表检查通过。
+
+`results/kv-diagnostics/{bf16,fp32}/` 保存原始记录、manifest、summary 和失败文件。默认 BF16 命令仍非零退出；希望复现通过的数学对照时，显式运行 `KV_DTYPE=float32 bash experiments/run.sh --case kv --out results/kv-fp32/new-run`。两种精度的结果都要交付，不能只交通过的一组。
 
 本模型 L=28、Hkv=2、dh=128、BF16 每元素 2 bytes：
 
@@ -87,9 +108,11 @@ shared 后续请求平均只降低约 **1.23 ms（3.7%）**；整组 quality goo
 
 ```bash
 python3 -m experiments.verify_evidence
+python3 -m experiments.verify_evidence --formal-directory confirmation
 # 在单独的本地 CPU venv 安装分析依赖，无需占用 GPU 时间：
 pip install -r requirements-analysis.lock
 python3 -m experiments.overview
+python3 -m experiments.kv_diagnostic_plot
 ```
 
 原始数据见 `results/formal/{baseline,optimized}-raw.jsonl`，预热、随机题目、答案、输出 hash 和环境声明分别保存。verify_evidence 独立复核 576 条文本/hash/正确性、分组 p95、trace 校验和及保留的失败状态。
@@ -97,3 +120,7 @@ python3 -m experiments.overview
 TTFT/E2E 由控制器经 SSH 隧道计时，包含网络和网关；TPOT 是首末内容事件间隔除以 usage 输出 token−1 的代理，不是逐 token ITL。token 吞吐依赖服务 usage，尚未独立 tokenize 核对。正式评分器的逐轮窗口时长未单独落盘，吞吐/goodput 使用评分器原始汇总，当前复算脚本不能独立重建该分母。仅有固定结构化任务，不代表通用模型能力。
 
 此次验证通过受控管理员命令调用同一生产控制器、评分器与日志保存链路，报告归属于指定账号；**没有独立实测浏览器点击“评测”的前端事件链**。一般申请入口维持原先关闭状态；本次不会自动开放所有人的 GPU 名额。
+
+## 资源收尾
+
+三轮实例均已由 Lambda 确认回收：首轮 28 美分、正式通过轮 33 美分、复测与 FP32 控制轮 32 美分，合计 **0.93 美元估算**。计费区间包括开机等待到云端确认消失，按上限单价向上取整；这不是 Lambda 发票金额。始终最多一台本任务 GPU，没有保留空闲实例。

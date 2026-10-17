@@ -1,0 +1,14 @@
+[
+  {
+    "command": "sudo -n docker exec agentist-llm-reference python3 -m experiments.cancellation",
+    "ok": true
+  },
+  {
+    "command": "bash experiments/run.sh --case kv --out results/kv/rehearsal",
+    "ok": false
+  },
+  {
+    "command": "KV_DTYPE=float32 bash experiments/run.sh --case kv --out results/kv-fp32/rehearsal",
+    "ok": true
+  }
+]

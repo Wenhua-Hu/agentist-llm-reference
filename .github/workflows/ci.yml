@@ -11,3 +11,5 @@ jobs:
       - run: pip install -r requirements.lock pytest==8.4.1 pytest-asyncio==1.1.0
       - run: python -m pytest -q
       - run: bash -n setup.sh experiments/run.sh
+      - run: python -m experiments.verify_evidence
+      - run: python -m experiments.verify_evidence --formal-directory confirmation

@@ -28,9 +28,26 @@
       "status": "terminated",
       "cost_cents_estimate": 33,
       "note": "BF16 KV numerical check failed; all raw evidence preserved."
+    },
+    {
+      "id": "0c135590-8f0e-4148-bf3c-793ff3458347",
+      "source_commit": "01340d52c5f2b72f0502af6ca3906261d846c10e",
+      "directories": [
+        "confirmation",
+        "kv-diagnostics/bf16",
+        "kv-diagnostics/fp32"
+      ],
+      "workload_version": "extraction-typed/1",
+      "automatic_score": 50,
+      "status": "terminated",
+      "cost_cents_estimate": 32,
+      "ended_at": "2026-10-17T21:36:51.900134Z",
+      "note": "BF16 failure reproduced; FP32 stricter predeclared tolerance passed; prompt/continuation hashes match across controls."
     }
   ],
   "trigger": "Explicit administrator controller rehearsal; browser click was not independently exercised.",
   "cost_note": "Estimates rounded up from cloud provision to confirmed absence, not invoices.",
-  "report_note": "Documentation/data publication commits are not claimed as GPU-tested service commits."
+  "report_note": "Documentation/data publication commits are not claimed as GPU-tested service commits.",
+  "grader_fix_commit": "5ade1aa1fdccc7dc9deb7247a60b9f0319088fb9",
+  "total_cost_cents_estimate": 93
 }

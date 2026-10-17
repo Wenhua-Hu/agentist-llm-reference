@@ -11,8 +11,8 @@ def read_rows(path):
     return [json.loads(line) for line in path.read_text().splitlines()]
 
 
-def verify(root):
-    formal=root/'formal'
+def verify(root, formal_name="formal"):
+    formal=root/formal_name
     report=json.loads((formal/'report.json').read_text())
     workload=json.loads((formal/'workload.json').read_text())
     assert hashlib.sha256(json.dumps(workload,sort_keys=True).encode()).hexdigest()==report['workload_sha256']
@@ -46,10 +46,23 @@ def verify(root):
         assert manifest['correctness_pass']==all(r['ok'] for r in rows)
         if not manifest['correctness_pass']:
             assert (directory/'failure.json').exists()
+    diagnostics=root/'kv-diagnostics'
+    if diagnostics.exists():
+        controls={}
+        for precision in ('bf16','fp32'):
+            directory=diagnostics/precision;rows=read_rows(directory/'raw.jsonl')
+            manifest=json.loads((directory/'manifest.json').read_text())
+            assert len(rows)==12 and manifest['complete']
+            assert manifest['correctness_pass']==all(r['ok'] for r in rows)
+            if not manifest['correctness_pass']: assert (directory/'failure.json').exists()
+            controls[precision]={n:{(r['input_hash'],r['continuation_hash']) for r in rows if r['length']==n} for n in (128,512)}
+            assert all(len(v)==1 for v in controls[precision].values())
+        assert controls['bf16']==controls['fp32']
     print('Evidence integrity verified: hashes, 576 responses, quality, p95, profiler traces, and retained failures.')
     print('Throughput windows are not independently reconstructed by this check; see report limitations.')
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--results',type=Path,default=Path('results'))
-    verify(parser.parse_args().results)
+    parser.add_argument('--formal-directory',default='formal',choices=['formal','confirmation'])
+    args=parser.parse_args();verify(args.results,args.formal_directory)

@@ -1,0 +1,5 @@
+{
+  "ok": false,
+  "type": "RuntimeError",
+  "error": "Experiment completed with failed checks; see raw data"
+}

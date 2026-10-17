@@ -4,7 +4,7 @@
 
 ## 已完成的真实 A10 彩排
 
-自动评测 **50/50**，576/576 正式请求正确，Agent 10/10；空环境重建约 **197 秒**。并发 8 的吞吐从 66.88 提升到 451.57 tokens/s。FlashAttention 数值检查通过，前缀缓存命中但小负载延迟收益很小；BF16 KV 全 logits 检查失败，负结果保留，FP32 对照单独报告。
+自动评测 **50/50**，576/576 正式请求正确，Agent 10/10；空环境重建约 **197 秒**。并发 8 的吞吐从 66.88 提升到 451.57 tokens/s。FlashAttention 数值检查通过，前缀缓存命中但小负载延迟收益很小；BF16 KV 全 logits 检查失败，负结果保留，FP32 对照通过，结果单独报告。
 
 [实测报告与图表](docs/performance.md) · [项目验收证据索引](docs/acceptance.md) · [原始数据](results/)
 
@@ -76,4 +76,4 @@ python3 -m venv .venv
 KV_DTYPE=float32 bash experiments/run.sh --case kv --out results/kv-fp32/rehearsal
 ```
 
-FP32 对照使用预先固定的 atol=0.001/rtol=0.0001，两分支同为 FP32；其结果不能替代 BF16 验证。两种精度均报告 top-1 agreement 与全词表误差。正式服务仍固定 BF16。
+FP32 对照使用预先固定的 atol=0.001/rtol=0.0001，两分支同为 FP32；A10 实测通过，最大误差约 0.00005。其结果不能替代 BF16 验证。两种精度均报告 top-1 agreement 与全词表误差。正式服务仍固定 BF16。
