@@ -94,15 +94,22 @@ def test_missing_runtime_headers_are_installed_for_selected_python(tmp_path, mon
     monkeypatch.setattr(native.os, 'geteuid', lambda: 1000)
     monkeypatch.setattr(native.shutil, 'which', lambda name: '/usr/bin/' + name)
     calls = []
-    def install(args):
+    def install(args, **kwargs):
         calls.append(args)
+        assert kwargs['timeout'] in (180, 240)
         if 'install' in args:
             (include/'Python.h').write_text('/* test header */')
+    monkeypatch.setattr(native, 'ubuntu_sources', lambda: tmp_path/'ubuntu.sources')
     monkeypatch.setattr(native, 'run', install)
     native.ensure_build_prerequisites('/project/.venv/bin/python')
     assert len(calls) == 2
     assert calls[0][:4] == ['sudo', '-n', 'env', 'DEBIAN_FRONTEND=noninteractive']
     assert calls[1][-2:] == ['build-essential', 'python3.12-dev']
+    assert 'Dir::Etc::sourceparts=-' in calls[0]
+    assert 'Acquire::http::Timeout=20' in calls[0]
+    assert 'Acquire::https::Timeout=20' in calls[0]
+    assert 'Acquire::Retries=1' in calls[0]
+    assert '-qq' not in calls[0]
     native.ensure_build_prerequisites('/project/.venv/bin/python')
     assert len(calls) == 2  # Repeated setup does not apt-install again.
 
@@ -112,6 +119,33 @@ def test_missing_headers_after_package_install_is_fatal(tmp_path, monkeypatch):
                         json.dumps({'version': '3.12', 'include': str(tmp_path)}))
     monkeypatch.setattr(native.os, 'geteuid', lambda: 0)
     monkeypatch.setattr(native.shutil, 'which', lambda name: '/usr/bin/' + name)
-    monkeypatch.setattr(native, 'run', lambda _: None)
+    monkeypatch.setattr(native, 'ubuntu_sources', lambda: tmp_path/'ubuntu.sources')
+    monkeypatch.setattr(native, 'run', lambda *args, **kwargs: None)
     with pytest.raises(RuntimeError, match='still unavailable'):
         native.ensure_build_prerequisites('/unsupported/python')
+
+
+def test_ubuntu_sources_exclude_cuda_and_preserve_signed_source(tmp_path, monkeypatch):
+    apt = tmp_path/'apt'
+    (apt/'sources.list.d').mkdir(parents=True)
+    state = tmp_path/'state'
+    state.mkdir()
+    monkeypatch.setattr(native, 'STATE', state)
+    ubuntu = 'Types: deb\nURIs: http://archive.ubuntu.com/ubuntu/\nSuites: noble noble-updates\nComponents: main universe\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg'
+    cuda = 'Types: deb\nURIs: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/\nSuites: /\nComponents: main'
+    source = apt/'sources.list.d/ubuntu.sources'
+    source.write_text(ubuntu+'\n\n'+cuda+'\n')
+    (apt/'sources.list.d/cuda.sources').write_text(cuda)
+    selected = native.ubuntu_sources(apt).read_text()
+    assert 'archive.ubuntu.com' in selected and 'Signed-By:' in selected
+    assert 'nvidia' not in selected
+    assert source.read_text() == ubuntu+'\n\n'+cuda+'\n'  # System files untouched.
+
+
+def test_legacy_ubuntu_sources_filter_third_party(tmp_path, monkeypatch):
+    monkeypatch.setattr(native, 'STATE', tmp_path)
+    (tmp_path/'sources.list').write_text('deb http://us.archive.ubuntu.com/ubuntu focal main\n'
+        'deb https://example.com/ubuntu focal main\n# deb http://security.ubuntu.com/ubuntu focal main\n')
+    source = native.ubuntu_sources(tmp_path)
+    assert source.suffix == '.list'
+    assert source.read_text() == 'deb http://us.archive.ubuntu.com/ubuntu focal main\n'

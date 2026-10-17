@@ -1,6 +1,6 @@
 # Native GPU service runbook
 
-1. 从指定 commit clone，设置 API_KEY / MODEL_ID / MODEL_REVISION / BENCH_PROFILE / HOST / PORT / HF_HOME。Daytona 基础环境提供 Ubuntu Linux、Python 3.12、NVIDIA 驱动、GPU 和非交互 sudo。setup 检查所选 Python 的开发头文件与 C/C++ 编译器，缺失时自行 apt 安装匹配版本；不依赖操作员手动补装。
+1. 从指定 commit clone，设置 API_KEY / MODEL_ID / MODEL_REVISION / BENCH_PROFILE / HOST / PORT / HF_HOME。Daytona 基础环境提供 Ubuntu Linux、Python 3.12、NVIDIA 驱动、GPU 和非交互 sudo。setup 检查所选 Python 的开发头文件与 C/C++ 编译器，缺失时自行 apt 安装匹配版本；不依赖操作员手动补装。安装仅从系统已有官方 Ubuntu 软件源筛选，不访问无关 CUDA 第三方源；网络连接超时 20 秒、重试 1 次，apt update/install 分别限制 180/240 秒，进度写入终端。
 2. `bash setup.sh` 安装私有依赖并等待就绪；`.runtime/engine.log`、`gateway.log`、`supervisor.log` 是过程诊断。不要发布进程环境或 API_KEY。
 3. 只有 setup 成功并且 `/healthz` 返回 ready 才可调用。503 看引擎日志，401 检查 Bearer，429 检查队列，504 检查总 deadline。SSE error 或缺 DONE 是失败。
 4. `BENCH_PROFILE=optimized bash setup.sh` 切换配置。`bash setup.sh --stop` 仅停止有匹配启动标识的本项目 supervisor；禁止 killall python。

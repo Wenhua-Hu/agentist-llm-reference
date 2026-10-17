@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / '.runtime'
@@ -52,6 +53,40 @@ def run(args, **kwargs):
     subprocess.run(list(map(str, args)), check=True, **kwargs)
 
 
+def ubuntu_sources(apt_root=Path('/etc/apt')):
+    """Use only existing Ubuntu source entries, without changing system sources."""
+    def official(uri):
+        parsed = urlsplit(uri)
+        return parsed.scheme in ('http', 'https') and (parsed.hostname or '').endswith('.ubuntu.com')
+    modern = apt_root / 'sources.list.d/ubuntu.sources'
+    legacy = apt_root / 'sources.list'
+    if modern.is_file():
+        selected = []
+        for block in modern.read_text().split('\n\n'):
+            uris = [u for line in block.splitlines() if line.startswith('URIs:')
+                    for u in line.split(':', 1)[1].split()]
+            if uris and all(official(uri) for uri in uris):
+                selected.append(block)
+        output = STATE / 'apt-ubuntu.sources'
+        content = '\n\n'.join(selected)
+    elif legacy.is_file():
+        selected = []
+        for line in legacy.read_text().splitlines():
+            if not line.lstrip().startswith(('deb ', 'deb-src ')):
+                continue
+            uris = [word for word in line.split() if word.startswith(('http://', 'https://'))]
+            if len(uris) == 1 and official(uris[0]):
+                selected.append(line)
+        output = STATE / 'apt-ubuntu.list'
+        content = '\n'.join(selected)
+    else:
+        raise RuntimeError('No existing Ubuntu apt sources found')
+    if not selected:
+        raise RuntimeError('No official Ubuntu entries in existing apt sources')
+    output.write_text(content + '\n')
+    return output
+
+
 def ensure_build_prerequisites(python):
     """Triton/FlashInfer compile CPython extensions even with cached wheels."""
     metadata = json.loads(subprocess.check_output([python, '-c',
@@ -67,9 +102,14 @@ def ensure_build_prerequisites(python):
     if privilege and not shutil.which('sudo'):
         raise RuntimeError('Missing build dependencies require passwordless sudo')
     print('Installing Python development headers and native build tools for runtime JIT', flush=True)
-    run([*privilege, 'env', 'DEBIAN_FRONTEND=noninteractive', 'apt-get', 'update', '-qq'])
-    run([*privilege, 'env', 'DEBIAN_FRONTEND=noninteractive', 'apt-get', 'install', '-y',
-         '--no-install-recommends', 'build-essential', 'python' + metadata['version'] + '-dev'])
+    source = ubuntu_sources()
+    apt = [*privilege, 'env', 'DEBIAN_FRONTEND=noninteractive', 'apt-get',
+           '-o', 'Dir::Etc::sourcelist=' + str(source), '-o', 'Dir::Etc::sourceparts=-',
+           '-o', 'Acquire::http::Timeout=20', '-o', 'Acquire::https::Timeout=20',
+           '-o', 'Acquire::Retries=1', '-o', 'Dpkg::Use-Pty=0']
+    run([*apt, 'update'], timeout=180)
+    run([*apt, 'install', '-y', '--no-install-recommends',
+         'build-essential', 'python' + metadata['version'] + '-dev'], timeout=240)
     if not header.is_file() or not shutil.which('cc') or not shutil.which('c++'):
         raise RuntimeError('Python headers/compiler still unavailable for selected runtime: ' + str(header))
 
