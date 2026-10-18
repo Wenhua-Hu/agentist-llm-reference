@@ -1,10 +1,30 @@
 # 自动评分与接口合同
 
-## 自动优化评测接口（评分版本 llm-lab/4.0）
+
+## 当前评分总表与验证状态
+
+当前公开参考分支为 [codex/credential-service-v5](https://github.com/mrvgao/agentist-llm-reference/tree/codex/credential-service-v5)，默认分支仍保留旧实现。部署时按平台任务书给出的完整 commit 固定源码；本文件不更新该冻结提交。升级当前在 staging 验证，不声明参考实现已通过全部验收。
+
+| 项目 | 分值 | 自动验收内容 |
+| --- | ---: | --- |
+| 干净重建 | 5 | 首次启动 2.5、幂等重跑 2.5 |
+| API 与工程行为 | 5 | 鉴权 1、模型信息 0.5、非流式 0.5、SSE 1、过载 1、取消与恢复 1 |
+| 服务正确性 | 5 | optimized 全部请求成功率 ≥95% 且正确率 ≥90%，同时满足得 5 分，否则 0 |
+| 最终服务性能 | 30 | 四组吞吐/延迟/质量联合目标；未标定或未确认时待评定 |
+| Agent 接入 | 5 | 模型规划、工具执行与最终回答走自己的服务 |
+| KV Cache | 10 | 独立原始实验与最终部署机制证据 |
+| RadixAttention | 10 | 独立原始实验与最终部署机制证据 |
+| FlashAttention | 10 | 独立原始实验与最终部署机制证据 |
+| 多用户凭据、计费与配额 | 15 | 三组各 5 分，15 项 CPU 检查与对应真实 SGLang 部署门槛联合验收 |
+| 工程与优化解释 | 5（人工） | 瓶颈/权衡 2、复现说明 2、下一步方案 1 |
+
+前九项自动合计 95 分，第十项人工仅 5 分。性能 `uncalibrated` / `unconfirmed` 表示平台门槛尚未就绪，页面标为“待评定”，不能显示为学员失败 0/30，也不生成正式最终总分；其他已经执行的成绩仍保留。控制器中断或失租同样不生成最终成绩，原始数据仅用于排查。提交未实现接口、setup 失败与业务断言失败仍按未完成交付计分，不能当作平台待标定而免扣分。
+
+## 自动优化评测接口（评分版本 llm-lab/5.0）
 
 **自动 95 分 + 人工 5 分。** 人工仅验收“工程与优化解释”：瓶颈与权衡 2、可追溯复现说明 2、下一步方案 1。源码定位、取消机制和部署取舍写入这份说明，不另外设人工分。
 
-点击“评测”后，平台在同一个全新 Daytona RTX 4090 沙箱上先运行服务/Agent 测试，再依次执行 KV、prefix、attention 三项独立实验；不会因 Git push、保存仓库或打开报告触发。完整评分仍受 30 分钟预算限制，实验超时/缺失会保留已完成项并明确扣分，不自动加时。KV/attention 各至多 300 秒，prefix 至多 480 秒，并受剩余总预算约束。
+点击“评测”后，平台在同一个全新 Daytona RTX 4090 沙箱上先运行服务/Agent 测试，再依次执行 KV、prefix、attention 三项独立实验；不会因 Git push、保存仓库或打开报告触发。完整评分受 60 分钟预算限制，实验超时/缺失会保留已完成项并明确扣分，不自动加时。KV/attention 各至多 300 秒，prefix 至多 480 秒，并受剩余总预算约束。
 
 平台实际调用：
 
@@ -83,10 +103,84 @@ bash experiments/run.sh --case attention --out results/platform-<随机运行标
 
 ## 最终服务性能与工程行为
 
-最终服务由控制端 `serving_benchmark.py` 和 `serving_probes.py` 独立测试。版本化 `acceptance.json` 固定硬件、模型/revision、BF16、工作负载和并发；当前标定未完成时 targets=null，性能项为 0 且 status=uncalibrated，不能生成通过结论。标定完成后才能发布数字门槛；不复用历史 Lambda A10 数据。
+最终服务由控制端 `serving_benchmark.py` 和 `serving_probes.py` 独立测试。版本化 `acceptance.json` 固定硬件、模型/revision、BF16、工作负载和并发；当前标定未完成时 targets=null、status=uncalibrated，性能 30 分待评定，不生成正式最终总分，也不能生成通过结论。候选门槛尚未独立确认（unconfirmed）时采用相同语义。标定完成后才能发布数字门槛；不复用历史 Lambda A10 数据。
 
 性能 30 分按配置中的目标组等分。每组必须同时通过输出 token/s、TTFT p95、TPOT p95、E2E p95、goodput、SLO 达标比例、成功率与正确率；还需匹配硬件/模型/精度、足够采样、完整时序和控制端 tokenizer 计数。失败组不能用更快的其他指标抵消。输出 token/s 只统计正确成功输出；SSE 块间隔不宣称精确 token ITL。
 
-API 10 分为鉴权 2、模型信息 1、非流式 1、SSE 2、过载拒绝 2、取消与恢复 2。工程探针在性能窗口之外执行。服务声明的 active/queued/abort_acknowledged 仅辅助核对；平台实际发起突发请求、关闭流、观察队列排空并检查恢复请求。人工分析仍只有 5 分，不用人工替代未通过的自动测试。
+API 5 分为鉴权 1、模型信息 0.5、非流式 0.5、SSE 1、过载拒绝 1、取消与恢复 1。工程探针在性能窗口之外执行。服务声明的 active/queued/abort_acknowledged 仅辅助核对；平台实际发起突发请求、关闭流、观察队列排空并检查恢复请求。人工分析仍只有 5 分，不用人工替代未通过的自动测试。
 
-历史 llm-lab/3.0 的每项 15 分原理实验、llm-lab/2.0 的 50/50 与 llm-lab/1.0 的 80/20 保留在原报告中，不按本版本追溯改分。
+历史 llm-lab/4.0 的重建/API/正确性各 10 分且未覆盖管理服务、llm-lab/3.0 的每项 15 分原理实验、llm-lab/2.0 的 50/50 与 llm-lab/1.0 的 80/20 保留在原报告中，不按本版本追溯改分。
+
+## 管理服务 15 项协议与联合部署门槛
+
+原 12 个需求场景见 [credential-service/1](credential-service.md)。以下与平台当前合同一致。
+
+
+平台独立运行 `controller-mock/1`，向你的 HTTP 网关发起请求并核对结果，不读取你自报的测试分数。以下 **15 项各 1 分（CPU 原始检查）**，归入三组各 5 分，并须通过对应真实 GPU 部署检查才计入最终分；这些是验收要求，不是已经通过的实测记录。
+
+#### 启动、停止与崩溃恢复入口
+
+`setup.sh` 除正常 SGLang 启动外，必须支持 `bash setup.sh --contract-test`。此模式**只替换模型引擎**，实际用户鉴权、密钥摘要校验、租户隔离、限流、余额预占、用量账本、结算和持久化必须使用与正式服务相同的实现。不得识别评测请求返回特制答案、跳过计费，或把 contract-test 视为免鉴权后门。
+
+平台先启动独立的确定性模型 fixture，再提供以下环境变量：
+
+| 变量 / 文件 | 约定 |
+| --- | --- |
+| `ENGINE_BASE_URL` | `http://127.0.0.1:30001`；连接平台提供的模型 fixture，不自行启动或替换它 |
+| `PORT` | 本轮网关监听 `8000`，实际由 `PORT` 读取 |
+| `API_KEY` | 初始化普通 benchmark 用户的推理 key，仍走真实鉴权、额度与账本 |
+| `ADMIN_API_KEY`、`KEY_HASH_SECRET` | 与正式模式相同的管理鉴权和摘要配置；从环境变量读取，不打印、持久化原文或写入仓库 |
+| `DATA_DIR` | 平台指定的本轮测试数据目录；同目录重启/幂等 setup 保留账本、用户、key 摘要与价格版本 |
+| `$DATA_DIR/gateway.pid` | 写入实际占用网关端口的进程 PID，不是启动 shell、fixture 或其他进程 PID；每次启动后更新 |
+
+`bash setup.sh --stop` 只停止自己启动的网关/服务进程，不清空 `DATA_DIR`，不终止平台 fixture；禁止按端口或进程名批量杀掉其他进程。正式模式仍启动真实 SGLang，不把 fixture 当成 GPU 部署。
+
+fixture 的 `POST /tokenize` 返回 `count=100`（并提供 token ID 数组）；推理返回受控的 `usage`：输入 100、输出 50。初始输入/输出价格分别为 **2 / 6 micro-USD/token**，一次费用为 `100×2+50×6=500 micro-USD`。fixture 可延迟响应、在 usage 前中断、或先发最终 usage 再延迟 `[DONE]`。这些确定性数据只用于事务验收，不用于性能分或真实模型正确性评分。 fixture 提供 `GET /health`、`GET /v1/models`、`POST /tokenize`、`POST /v1/chat/completions` 和 `POST /abort_request`（使用对应请求的 `rid`）。`/__fixture/*` 仅供控制端配置和观察，提交服务不能依赖这些管理接口或获取 fixture 管理凭据。
+
+恢复测试先核对 `gateway.pid` 对应进程确实持有 8000 监听 socket，再对该网关注入 `SIGKILL`，使用相同环境变量和 `DATA_DIR` 重跑 `setup.sh --contract-test`。要求覆盖两个窗口：① 预占后尚无可信 usage，保留未知用量与调整审计，60 秒内释放预占；② 最终 usage 已到达网关、但流尚未 `[DONE]`，恢复后根据持久化 usage 恰好结算一次。已提交账目不能丢失或重复扣费。
+
+#### 15 项检查与原 12 个需求场景的对应关系
+
+| test_id | 自动组 / 分值 | 独立测试内容 | 对应需求场景 |
+| --- | --- | --- | --- |
+| `isolation` | key_lifecycle / 1 | 两租户各自请求与账目隔离；普通 key 不能读管理接口或覆盖 tenant_id | 1、2 |
+| `storage` | key_lifecycle / 1 | key 列表不回传原文；扫描 DATA_DIR 未发现本次签发的原文 key | 2 |
+| `rotate` | key_lifecycle / 1 | 新 key 与 key_id 不同；旧 key 新请求 401，新 key 成功 | 3 |
+| `revoke_expiry` | key_lifecycle / 1 | 撤销与到期 key 均返回 401 | 4 |
+| `disabled` | key_lifecycle / 1 | 禁用租户推理返回 403 | 4 |
+| `nonstream_billing` | metering_billing / 1 | 非流式 100/50 tokens 精确结算 500；余额与预占、逐 key 明细一致 | 5 |
+| `stream_billing` | metering_billing / 1 | 客户端未请求 usage 时，流式仍记录 100/50 并精确结算 500 | 5、9 |
+| `idempotency` | metering_billing / 1 | 20 次同 Idempotency-Key 请求至多一次模型生成/扣费；不同请求体复用返回 409 | 6 |
+| `pricing` | metering_billing / 1 | 价格改为 4/8 后新费用 800、历史仍 500，版本独立，累计 1300 | 11 |
+| `credits` | metering_billing / 1 | 相同充值 key 仅入账一次；同 key 改金额返回 409 | 11 |
+| `reservation` | quota_recovery / 1 | 余额只够一次时并发 20 请求，仅一次进入模型并结算，其余 402；预占归零 | 7 |
+| `token_quota` | quota_recovery / 1 | 多 key 共享用户累计 token 额度，150 用完后另一 key 返回 402 | 8 |
+| `rpm` | quota_recovery / 1 | 多 key 共享 RPM，超限 429 + Retry-After | 8 |
+| `cancel` | quota_recovery / 1 | 首段断流后上游 abort、并发名额恢复；取消账目保留，未知 usage 不伪造 | 8、9 |
+| `recovery` | quota_recovery / 1 | 两个真实网关崩溃窗口：无 usage 的调整审计，以及已 journal usage 的恰好一次结算 | 10 |
+
+这张映射不意味着每项需求的所有安全属性都由黑盒证明。例如原场景 1 的“两用户各两把 key”、完整日志脱敏、轮换前历史记录可追溯、管理网页全部操作，仍须交付对应代码与自测证据；控制端的 `storage` 只扫描本次签发原文 key 是否出现在 DATA_DIR 和列表中，**不证明密码学摘要算法、随机性或所有日志都安全**。源码仍须实现带服务端 secret 的安全摘要，不能可逆保存原文 key。
+
+原场景 12 的真实 GPU 流式、非流式、Agent 调用继续由 live 自测和实际服务评测验证，不能拿这 15 项 mock 测试代替。性能压测必须保持正式鉴权、配额与账本开启。
+
+#### 与真实 SGLang 部署联合验收
+
+15 项 CPU 确定性检查不是独立的模拟项目。每个 5 分组还必须通过对应的 **optimized 真实 GPU 服务部署检查**才保留该组 CPU 得分；对应部署检查失败或未完成，该组为 0，并标注“部署未验证”。原始 CPU case 结果仍保留用于定位问题，不把其通过状态改写成已获得最终组分。
+
+真实服务检查会创建两个独立用户，分别完成流式和非流式调用，核对首个内容事件、流结束标记、实际 usage 与费用/用户账本及互不可见；测试轮换后旧 key 401、新 key 可调用；并确认原 `API_KEY` benchmark 用户的 `/v1/usage` 中已有真实模型调用账目。正式性能、正确性与 Agent 测试不能绕开鉴权、配额和账本。
+
+| CPU 组 | 对应真实 optimized 网关联合门槛 |
+| --- | --- |
+| key_lifecycle | 两租户各流式/非流式、账目归属与互不可见、普通 key 无管理权限；轮换后旧 key 401、新 key 可用 |
+| metering_billing | 独立核对输入 token 数，响应 usage 与逐请求账目、汇总、余额和预占一致；原 benchmark key 也实际计费 |
+| quota_recovery | 多 key 共享用户 RPM，超限 429 且 Retry-After；余额不足 402，不进入正常推理 |
+
+真实部署检查不重复所有 CPU 故障注入；崩溃恢复由上述确定性测试验证。真实计费检查当前独立复核输入计数和账本一致性，不能把对响应 usage 的核对宣称为输出 token 防伪证明；正式性能另用独立 tokenizer 统计输出。
+
+报告 credentials 项保存 `deployment_passed` 与 `live_checks`（每项 `id/passed/detail`），三个 `subchecks` 分别保存 `deployment_passed`。页面同时展示最终组分、真实部署依据和 15 项 CPU 原始结果。具体通过与否只能依据本次控制端实测，当前文档不声明任何参考实现已通过。
+
+#### 报告中的通过、失败与未执行
+
+`report.checks` 的 `id="credentials"` 项上限 15，`subchecks` 三组为 `key_lifecycle`、`metering_billing`、`quota_recovery`，每组上限 5。`cases` 按上述 test_id 保存 `id/title/group/executed/passed/detail`，不包含原文 key。
+
+`executed=true` 且 `passed=true` 才是该项通过；执行后断言失败显示未通过。`executed=false` 或缺少记录显示未执行/无记录，并列出原因。未实现 `--contract-test` 或提交服务启动失败属于未完成交付，可得 0/15，不会因显示未执行而自动免扣分；控制器自身异常或失租的报告由平台标明中断，不能据此声称正式验收通过。公开自测只产出本地证据，不能提交分数或代替控制端测试。

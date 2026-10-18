@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 
 import httpx
 from .measurement import events, percentile
+from .prose_workload import WORKLOAD_V3, BANK_SHA256, build_workload_v3
 
 
 def load_tokenizer(config, local_files_only=False):
@@ -33,7 +34,7 @@ def chat_tokens(tokenizer, messages):
 
 WORKLOAD_V1 = "typed-json-exact-input/1"
 WORKLOAD_V2 = "json-literal-copy-exact-input/2"
-SUPPORTED_WORKLOADS = {WORKLOAD_V1, WORKLOAD_V2}
+SUPPORTED_WORKLOADS = {WORKLOAD_V1, WORKLOAD_V2, WORKLOAD_V3}
 
 NEUTRAL_DECODING = {"temperature": 0, "repetition_penalty": 1.0, "top_p": 1.0,
                     "top_k": -1, "sampling_defaults": "openai"}
@@ -61,6 +62,8 @@ def build_workload(tokenizer, spec, seed, count, workload_version=WORKLOAD_V1):
     """Exact *chat-template* input length, with controller-generated JSON answers."""
     if workload_version not in SUPPORTED_WORKLOADS:
         raise ValueError('unsupported workload version')
+    if workload_version == WORKLOAD_V3:
+        return build_workload_v3(tokenizer, spec, seed, count, v1_builder=build_workload)
     rng = random.Random(seed)
     items = []
     for index in range(count):
@@ -244,8 +247,19 @@ MEASUREMENT_FIELDS = ('schema', 'hardware_contains', 'model_id', 'model_revision
 REQUIRED_TARGETS = {(w, c) for w in ('short', 'long') for c in (8, 16)}
 
 
+def measurement_fields(config):
+    return MEASUREMENT_FIELDS + (('prose_bank_sha256',) if config.get('workload_version') == WORKLOAD_V3 else ())
+
+
+def validate_workload_contract(config):
+    if config.get('workload_version') not in SUPPORTED_WORKLOADS:
+        raise ValueError('unsupported workload version')
+    if config.get('workload_version') == WORKLOAD_V3 and config.get('prose_bank_sha256') != BANK_SHA256:
+        raise ValueError('missing or mismatched frozen prose bank')
+
+
 def core_contract_digest(config):
-    core = {k: config[k] for k in MEASUREMENT_FIELDS}
+    core = {k: config[k] for k in measurement_fields(config)}
     core['targets'] = sorted(config['targets'], key=lambda t: (t['workload'], t['concurrency']))
     return hashlib.sha256(json.dumps(core, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
 
@@ -276,6 +290,7 @@ def confirmed_acceptance(config):
 
 def validate_acceptance(config, *, allow_provisional=False):
     """Fail closed: no optimistic defaults for unpublished/unknown thresholds."""
+    validate_workload_contract(config)
     if not neutral_policy(config.get('decoding_policy')):
         raise ValueError('missing or unsupported neutral decoding policy')
     if config.get('status') != 'calibrated' or not config.get('calibration'):
@@ -365,6 +380,7 @@ def apply_calibrated_slos(config, summaries, rows):
 
 
 async def measure(base, key, profile, config, tokenizer, seed, out, emit=print):
+    validate_workload_contract(config)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     summaries, all_rows, warm_rows = [], [], []
