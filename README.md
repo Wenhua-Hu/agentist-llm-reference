@@ -12,6 +12,23 @@
 
 升级正在 staging 验证。性能门槛未标定或未独立确认时，30 分是“待评定”，不是学员失败 0 分；保留其他真实结果，暂不生成正式最终总分。控制器中断也不生成最终成绩。本轮已确认结果见 Daytona V5 实测记录；下列 A10 历史证据单独保留。
 
+## CPU 接口检查与插件命令（测试环境）
+
+本分支的 `.github/workflows/llm-soft.yml` 会在 `git push` 后，在 GitHub 托管的临时 Ubuntu CPU runner 中启动独立模型 fixture，再执行真实 `setup.sh --contract-test`、网关和 SQLite 账本。不会安装 SGLang、下载模型或申请平台 GPU。Actions Summary 显示逐项结果，`llm-soft-report` artifact 保留 `report.json` 和摘要。报告绑定完整 commit SHA；`pass / missing / invalid / blocked` 分别表示通过、缺接口、格式或行为错误、前置条件未满足。
+
+安装 OpenLabs **测试插件** 后，可让自己的 Agent 执行：
+
+```text
+evaluate project-2 --soft
+evaluate project-2 result <返回的 job_id>
+assistant project-2 我的 SSE / rotate / 计费检查为什么失败？
+evaluate project-2 --formal --repo <owner/repo> --commit <完整40位SHA>
+```
+
+手动 soft 使用本机 GitHub CLI（先 `gh auth login`），要求工作流存在于仓库默认分支，目标分支已经推送且 HEAD 与 SHA 一致；插件不会自动提交、push 或安装工作流。正式评测复用 `lab-login`、网页已绑定仓库、cohort-2 资格与现有 Realtime 队列；只在明确请求 `--formal` 时使用 GPU 预算和正式次数。自动 push 检查不改变 95+5 分成绩，不证明模型质量、吞吐、TTFT、TPOT、KV Cache 或 GPU 优化达标。CPU 报告属于可修改的自测证据，正式评分仍由平台独立评测器产生。
+
+任务说明及当前检查器下载见 [测试任务书](https://test.lab.parallight.ai/lab/llm-lab/taskbook)。不向工作流提供平台凭据、Daytona/Lambda API Key 或生产密钥。公开仓库默认可查看 Actions 日志；脚本只使用一次性测试密钥。
+
 ## 历史 A10 彩排（不作为当前验收）
 
 历史 llm-lab/2.0 自动评测 **50/50**，576/576 正式请求正确，Agent 10/10；空环境重建约 **197 秒**。并发 8 的吞吐从 66.88 提升到 451.57 tokens/s。FlashAttention 数值检查通过，前缀缓存命中但小负载延迟收益很小；BF16 KV 全 logits 检查失败，负结果保留，FP32 对照通过，结果单独报告。
