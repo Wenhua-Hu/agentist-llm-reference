@@ -1,4 +1,5 @@
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -20,6 +21,12 @@ def test_real_socket_disconnect_releases_slots():
                     if client.get('/healthz').status_code==200:break
                 except httpx.HTTPError:time.sleep(.05)
             else:raise RuntimeError('test server did not start')
+            # Set a real tenant-level limit of one: accounting reconciliation must
+            # retain unknown money reservations without retaining execution slots.
+            response=client.patch('/admin/tenants/tenant_benchmark',
+                headers={'Authorization':'Bearer '+os.environ['ADMIN_API_KEY']},
+                json={'concurrency_limit':1})
+            assert response.status_code==200
             for _ in range(20):
                 with client.stream('POST','/v1/chat/completions',json={
                     'model':MODEL,'messages':[{'role':'user','content':'slow'}],'stream':True}) as response:
@@ -38,6 +45,13 @@ def test_real_socket_disconnect_releases_slots():
                 time.sleep(.01)
             assert state['counters'].get('abort_acknowledged',0)==20
             assert state['counters'].get('complete',0)==0
+            for _ in range(80):
+                usage=client.get('/v1/usage').json()
+                if usage['summary']['reserved_micro_usd']==0:break
+                time.sleep(.05)
+            assert usage['summary']['reserved_micro_usd']==0
+            assert len(usage['items'])==20
+            assert all(r['status']=='adjusted_unknown' and r['input_tokens'] is None and r['cost_micro_usd'] is None for r in usage['items'])
     finally:
         process.terminate()
         try:process.wait(timeout=5)

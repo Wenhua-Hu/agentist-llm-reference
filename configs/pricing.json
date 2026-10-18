@@ -1,0 +1,7 @@
+{
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "input_micro_usd_per_token": 2,
+  "output_micro_usd_per_token": 6,
+  "unit": "microUSD",
+  "purpose": "experimental ledger, not real payments"
+}

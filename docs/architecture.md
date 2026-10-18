@@ -6,6 +6,8 @@
 
 模型输出/usage 直接来自引擎，不替换成固定答案。Agent 第一次模型调用只收到任务和工具描述，不收到订单事实；白名单工具执行后，第二次模型调用从真实工具结果回答。输出不正确时不偷偷用工具数据改写。最大两次模型调用与总超时限制防止无界循环。
 
-鉴权仅健康检查豁免。SGLang 引擎只监听 loopback；网关默认 loopback，可通过 HOST=0.0.0.0 接入 Daytona 受控端口代理。API key 不打印、不进 /info。正式测试端应独立控制认证和评分，不能信任学员提交的成绩。原生 supervisor 管理进程，不要求 Docker 或 systemd。
+健康检查与不含敏感数据的 `/console` 登录壳公开；其他请求分别使用普通租户密钥或独立管理员凭据鉴权。SGLang 引擎只监听 loopback；网关默认 loopback，可通过 HOST=0.0.0.0 接入 Daytona 受控端口代理。API key 不打印、不进 /info。正式测试端应独立控制认证和评分，不能信任学员提交的成绩。原生 supervisor 管理进程，不要求 Docker 或 systemd。
 
 模型权重 ≈ P×b_w。逻辑 KV = 2×L×Hkv×dh×bkv×ΣT_i。引擎预分配池、PyTorch reserved 和 nvidia-smi 进程显存包含不同对象，不能直接互相等同。PagedAttention 改善分配/碎片与复用，不减少这个逻辑张量元素数量。
+
+多租户管理的事务与恢复边界见 [credential-service/1](credential-service.md)。SGLang 不承担用户账本；网关先用固定 chat template 计算输入 token，再在 SQLite 事务内预占余额与 token 额度。流式最终 usage 在向客户端发出前落盘，DONE 后结算；取消释放执行名额，未知账目继续占用余额直到审计对账。

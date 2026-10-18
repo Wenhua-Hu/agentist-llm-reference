@@ -31,7 +31,8 @@ def engine_command(config, cache=None):
 def main():
     _, cfg = configuration()
     logs = Path(os.environ.get('RUNTIME_DIR', '/runtime')); logs.mkdir(exist_ok=True)
-    command = engine_command(cfg)
+    contract_test = os.environ.get('CONTRACT_TEST') == '1'
+    command = None if contract_test else engine_command(cfg)
     (logs/'engine-command.json').write_text(json.dumps(command, indent=2))
     engine_log = (logs/'engine.log').open('a')
     gateway_log = (logs/'gateway.log').open('a')
@@ -43,7 +44,8 @@ def main():
     signal.signal(signal.SIGTERM, stopping)
     signal.signal(signal.SIGINT, stopping)
     try:
-        children.append(subprocess.Popen(command, stdout=engine_log, stderr=engine_log, start_new_session=True))
+        if command:
+            children.append(subprocess.Popen(command, stdout=engine_log, stderr=engine_log, start_new_session=True))
         children.append(subprocess.Popen([sys.executable, '-m', 'uvicorn', 'server.app:factory', '--factory',
             '--host', os.environ['HOST'], '--port', os.environ['PORT'], '--workers', '1', '--no-access-log'],
             stdout=gateway_log, stderr=gateway_log, start_new_session=True))

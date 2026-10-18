@@ -1,0 +1,6 @@
+# Gateway counts the exact pinned chat template before reserving funds.
+# Same versions as the native SGLang closure; no weights or GPU dependencies.
+transformers==4.57.1
+tokenizers==0.22.2
+huggingface-hub==0.36.2
+jinja2==3.1.6

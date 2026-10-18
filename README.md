@@ -1,6 +1,6 @@
 # Agentist Project 2 — LLM service reference implementation
 
-这是一份完整参考工程：固定模型部署、鉴权网关、流式推理、FIFO 有界排队、取消/超时、工具 Agent、KV/前缀/Attention 实验、CPU 测试与实测报告。接口合同 llm-lab/1.0；当前评分合同 llm-lab/4.0：自动 95 分，人工验收仅 5 分（工程与优化解释）。KV / prefix / attention 各 10 分由平台实际运行后自动评分，并核对最终服务配置；最终服务性能另占 30 分，必须通过标定后的数字门槛。具体调用与字段见[自动评分合同](docs/autograding.md)。
+这是一份服务工程参考实现：SGLang 部署、持久化多租户凭据与实验账本、流式推理、FIFO 有界排队、取消/超时、工具 Agent、KV/前缀/Attention 实验与 CPU 测试。推理合同 llm-lab/1.0；新增管理合同 credential-service/1 正在测试环境验证，包含真实 `/console` 与管理员 API。自动验收占 95 分、人工验收占 5 分，具体分项以平台当前项目任务书为准。历史报告不覆盖新增管理功能，也不代表当前性能指标已标定通过。
 
 ## 已完成的真实 A10 彩排
 
@@ -19,6 +19,10 @@ git clone https://github.com/mrvgao/agentist-llm-reference.git
 cd agentist-llm-reference
 export HOST=127.0.0.1 PORT=8000
 export API_KEY="$(openssl rand -hex 32)"
+export ADMIN_API_KEY="$(openssl rand -hex 32)"
+export KEY_HASH_SECRET="$(openssl rand -hex 32)"
+export DATA_DIR="$PWD/.data"
+# 将这些变量保存在受限的环境配置中；重启复用相同 KEY_HASH_SECRET / DATA_DIR。
 export MODEL_ID=Qwen/Qwen2.5-1.5B-Instruct
 export MODEL_REVISION=989aa7980e4cf806f80c7fef2b1adb7bc71aa306
 export BENCH_PROFILE=baseline
@@ -28,7 +32,7 @@ curl -fsS http://127.0.0.1:8000/healthz
 curl -fsS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8000/info
 ```
 
-`setup.sh` 等待就绪后退出；服务由本项目 supervisor 管理，记录 PID 与 Linux 进程启动标识，日志在 `.runtime/`。相同配置幂等；`BENCH_PROFILE=optimized bash setup.sh` 停本项目旧服务再启动优化配置。密钥由环境传递，真实密钥不入库。
+`setup.sh` 等待就绪后退出；服务由本项目 supervisor 管理，记录 PID 与 Linux 进程启动标识，日志在 `.runtime/`。相同配置幂等；`BENCH_PROFILE=optimized bash setup.sh` 停本项目旧服务再启动优化配置。密钥由环境传递；数据库只保存 HMAC 摘要和掩码，不能保存明文。`API_KEY` 是普通 metered benchmark 用户，不拥有管理权限。`ADMIN_API_KEY` 与它必须不同；未提供管理员凭据时管理 API 关闭。
 
 ```bash
 curl -N http://127.0.0.1:8000/v1/chat/completions \
@@ -39,12 +43,30 @@ curl -N http://127.0.0.1:8000/v1/chat/completions \
 ## 代码入口
 
 - `setup.sh` / `scripts/native_setup.py` / `server/supervisor.py`：可重建、幂等、进程生命周期。
-- `server/app.py` / `auth.py` / `admission.py` / `streaming.py` / `backend.py`：公开合同、鉴权、排队、真实 SGLang 转发、取消。
+- `server/app.py` / `admission.py` / `streaming.py` / `backend.py`：公开合同、排队、真实 SGLang 转发、取消。
+- `control_plane/storage.py`：SQLite 迁移、HMAC 密钥、版本价格、事务预占/结算、跨密钥配额与审计；`api.py`：严格管理接口；`meter.py`：可信输入计数、恢复、数据库进程所有权。
+- `console/index.html`：用户、密钥、额度、价格、账单与审计管理；`migrations/` / `configs/pricing.json`：schema 和初始实验价格。
+- `scripts/seed_demo.py` / `scripts/check_control_plane.py`：合成用户与公开自测，不写入平台正式成绩。
 - `agent/`：模型规划 → 白名单 lookup_order → 模型最终回答；不从题目绕过模型生成答案。
 - `configs/`：baseline 1 个 running request / 8192 KV tokens / Triton / prefix off / CUDA Graph off；optimized 32 / 16384 / FlashInfer / prefix on / CUDA Graph on。两组固定模型、BF16、4096 上下文和网关 32 slots/64 queue。两组显式使用 `sampling_defaults=openai`，请求温度固定 0，避免继承模型文件里的重复惩罚；见[采样策略](docs/sampling-policy.md)。总 profile 比较不能归因到单项；用 `MAX_RUNNING_REQUESTS`、`PREFIX_CACHE`、`ATTENTION_BACKEND` 做受控消融。
 - `experiments/`：KV Cache、RadixAttention、SDPA math/flash、服务压测、GPU 取消验证与 SVG。
 - `tests/` / `.github/workflows/ci.yml`：只有 CPU 测试，不申请 GPU。
 - `docs/` / `results/`：架构、运维、性能结论与原始证据。见 `docs/performance.md` 实测状态。
+
+## 多用户管理与实验账本
+
+浏览器通过 SSH tunnel 打开 `/console`，输入独立的管理员凭据即可创建用户、调整共享配额/余额、发放与轮换密钥、查询账单。页面不保存管理员密码到 localStorage/cookie；新 API key 只在创建或轮换时显示。所有金额为整数 microUSD，初始实验价格为输入 2、输出 6 每 token，不代表市场定价，不发生真实支付。
+
+[完整管理 API、持久化、故障与自测说明](docs/credential-service.md)。CPU 模拟测试不启动模型；live 自测只调用已运行的服务，不申请 GPU：
+
+```bash
+.venv-test/bin/python scripts/check_control_plane.py --suite mock \
+  --out results/control-plane/mock-run-1.json
+.venv/bin/python scripts/check_control_plane.py --base-url http://127.0.0.1:8000 \
+  --suite live --out results/control-plane/live-run-1.json
+```
+
+`mock` 覆盖 1–11 场景，真实 GPU 场景明确 skipped；`live` 验证两个用户的流式、非流式及 Agent 账单，并明确跳过需要受控故障/用量的场景。任何 skipped 不计通过，公开自测没有正式评分权。
 
 ## 显式运行实验
 

@@ -230,3 +230,38 @@ def test_both_profiles_disable_hidden_model_sampling_defaults(monkeypatch, profi
     assert cfg['top_k'] == -1 and cfg['request_temperature_default'] == 0.0
     args = engine_command(cfg)
     assert args[args.index('--sampling-defaults')+1] == 'openai'
+
+
+def test_contract_setup_installs_only_gateway_and_never_starts_or_checks_gpu(tmp_path, monkeypatch):
+    state=tmp_path/'runtime'
+    monkeypatch.setattr(native,'STATE',state)
+    monkeypatch.setattr(native.sys,'argv',['native_setup.py','--contract-test'])
+    for key,value in {'API_KEY':'ordinary-test-key','MODEL_ID':'Qwen/Qwen2.5-1.5B-Instruct',
+                      'MODEL_REVISION':'fixed-test-revision','BENCH_PROFILE':'optimized',
+                      'ENGINE_BASE_URL':'http://127.0.0.1:30001'}.items():monkeypatch.setenv(key,value)
+    calls=[]
+    monkeypatch.setattr(native,'run',lambda args,**kwargs:calls.append(list(map(str,args))))
+    monkeypatch.setattr(native.subprocess,'check_output',lambda *args,**kwargs:'fixed-test-commit\n')
+    monkeypatch.setattr(native,'process_identity',lambda pid:'known-start')
+    monkeypatch.setattr(native,'healthy',lambda *args:True)
+    class Child:
+        pid=12345
+        def poll(self):return None
+    monkeypatch.setattr(native.subprocess,'Popen',lambda args,**kwargs:(calls.append(list(map(str,args))) or Child()))
+    native.main()
+    assert os.environ['CONTRACT_TEST']=='1'
+    assert json.loads((state/'runtime.json').read_text())['mode']=='contract-test'
+    assert not any('nvidia-smi' in call or 'sglang.launch_server' in call for call in calls)
+    installs=[call for call in calls if 'install' in call]
+    assert len(installs)==1 and installs[0][-2:]==['-r','requirements.lock']
+    assert 'requirements-runtime.lock' not in str(installs)
+    assert any('server.supervisor' in call for call in calls)
+
+
+def test_startup_logs_redact_all_three_injected_secrets(tmp_path,monkeypatch,capsys):
+    for name in ('API_KEY','ADMIN_API_KEY','KEY_HASH_SECRET'):monkeypatch.setenv(name,'private-'+name+'-test')
+    path=tmp_path/'gateway.log'
+    path.write_text(' '.join(os.environ[n] for n in ('API_KEY','ADMIN_API_KEY','KEY_HASH_SECRET'))+'\n')
+    native.forward_logs({path:{'offset':0,'pending':b''}})
+    output=capsys.readouterr().out
+    assert 'private-' not in output and output.count('[REDACTED]')==3

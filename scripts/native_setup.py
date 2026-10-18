@@ -163,7 +163,7 @@ def validate_versions(actual):
 
 
 DEPENDENCY_FILES = ('requirements.lock', 'requirements-runtime.lock',
-                    'requirements-analysis.lock', 'requirements-native-linux-py312.lock')
+                    'requirements-analysis.lock', 'requirements-tokenizer.lock', 'requirements-native-linux-py312.lock')
 
 
 def dependency_fingerprint(root=ROOT):
@@ -209,7 +209,7 @@ def healthy(host, port):
 
 def forward_logs(logs, *, max_bytes=65536):
     """Forward only new complete lines; redact secrets even across read boundaries."""
-    secret = os.environ.get('API_KEY', '').encode()
+    secrets = [os.environ.get(name, '').encode() for name in ('API_KEY', 'ADMIN_API_KEY', 'KEY_HASH_SECRET')]
     for path, state in logs.items():
         if not path.exists():
             continue
@@ -221,8 +221,9 @@ def forward_logs(logs, *, max_bytes=65536):
         lines = data.split(b'\n')
         state['pending'] = lines.pop()
         for line in lines:
-            if secret:
-                line = line.replace(secret, b'[REDACTED]')
+            for secret in secrets:
+                if secret:
+                    line = line.replace(secret, b'[REDACTED]')
             print('[' + path.stem + '] ' + line.decode('utf-8', errors='replace'), flush=True)
 
 
@@ -235,11 +236,24 @@ def main():
         if sys.argv[1:] == ['--stop']:
             stop_owned()
             return
-        if sys.argv[1:]:
-            raise ValueError('Only optional argument is --stop')
-        for name in ('API_KEY', 'MODEL_ID', 'MODEL_REVISION', 'BENCH_PROFILE'):
+        contract_test = sys.argv[1:] == ['--contract-test']
+        if sys.argv[1:] and not contract_test:
+            raise ValueError('Optional arguments: --stop or --contract-test')
+        os.environ['CONTRACT_TEST'] = '1' if contract_test else '0'
+        if contract_test:
+            endpoint = urlsplit(os.environ.get('ENGINE_BASE_URL', ''))
+            if endpoint.scheme != 'http' or endpoint.hostname not in ('127.0.0.1', 'localhost') or endpoint.username or endpoint.password or endpoint.path not in ('', '/'):
+                raise ValueError('Contract engine must be an explicit local HTTP endpoint')
+        elif os.environ.get('ENGINE_BASE_URL'):
+            raise ValueError('ENGINE_BASE_URL is only accepted by --contract-test')
+        for name in ('API_KEY', 'MODEL_ID', 'MODEL_REVISION', 'BENCH_PROFILE', 'KEY_HASH_SECRET', 'DATA_DIR'):
             if not os.environ.get(name):
                 raise ValueError(name + ' required')
+        if len(os.environ['KEY_HASH_SECRET'].encode()) < 32:
+            raise ValueError('KEY_HASH_SECRET requires at least 32 bytes')
+        os.environ['DATA_DIR'] = str(Path(os.environ['DATA_DIR']).expanduser().resolve())
+        if os.environ.get('ADMIN_API_KEY') == os.environ['API_KEY']:
+            raise ValueError('ADMIN_API_KEY must differ from API_KEY')
         if os.environ['BENCH_PROFILE'] not in ('baseline', 'optimized'):
             raise ValueError('Invalid BENCH_PROFILE')
         host = os.environ.setdefault('HOST', '127.0.0.1')
@@ -253,6 +267,7 @@ def main():
         os.environ.update(RUNTIME_DIR=str(STATE), PYTHONUNBUFFERED='1', HF_HUB_DISABLE_XET='1')
         fields = ['SOURCE_COMMIT', 'HOST', 'PORT', 'API_KEY', 'MODEL_ID', 'MODEL_REVISION',
                   'BENCH_PROFILE', 'HF_HOME', 'SGLANG_PYTHON', 'MAX_RUNNING_REQUESTS',
+                  'ADMIN_API_KEY', 'KEY_HASH_SECRET', 'DATA_DIR', 'CONTRACT_TEST', 'ENGINE_BASE_URL',
                   'GATEWAY_SLOTS', 'GATEWAY_QUEUE', 'ATTENTION_BACKEND', 'PREFIX_CACHE']
         digest = hashlib.sha256()
         for name in fields:
@@ -269,7 +284,8 @@ def main():
                 print('Same configuration already ready (idempotent)', flush=True)
                 return
         stop_owned()
-        run(['nvidia-smi', '-L'])
+        if not contract_test:
+            run(['nvidia-smi', '-L'])
         gateway_python = ROOT / '.venv' / 'bin' / 'python'
         if not gateway_python.exists():
             run([sys.executable, '-m', 'venv', ROOT / '.venv'])
@@ -277,33 +293,40 @@ def main():
         external_runtime = bool(engine_python)
         # Resolve gateway, engine and analysis together; later installs must not
         # silently upgrade an earlier contract pin (e.g. idna).
-        requirements = ('requirements.lock',) if external_runtime else DEPENDENCY_FILES
+        requirements = ('requirements.lock',) if contract_test else (('requirements.lock', 'requirements-tokenizer.lock') if external_runtime else DEPENDENCY_FILES)
         install = [gateway_python, '-m', 'pip', 'install', '--disable-pip-version-check']
         for name in requirements:
             install += ['-r', name]
+        if external_runtime and not contract_test:
+            install += ['-c', 'requirements-native-linux-py312.lock']
         run(install)
         run([gateway_python, '-m', 'pip', 'check'])
-        dependency_manifest = None
-        if not external_runtime:
-            engine_python = str(gateway_python)
-            dependency_manifest = verify_native_packages(engine_python)
+        if contract_test:
+            (STATE / 'runtime.json').write_text(json.dumps({'mode':'contract-test',
+                'gateway_python':str(gateway_python),'versions':{'sglang':'not-started'},
+                'hf_home':os.environ['HF_HOME']}))
         else:
-            run([engine_python, '-m', 'pip', 'check'])
-        runtime_environment = configure_runtime_environment(engine_python, gateway_python)
-        ensure_build_prerequisites(engine_python)
-        jit_tools = validate_jit_tools()
-        versions = runtime_versions(engine_python)
-        validate_versions(versions)
-        # Validate real CUDA execution, not just a driver visible to nvidia-smi.
-        run([engine_python, '-c', 'import torch;assert torch.cuda.is_available();'
-             'x=torch.ones(16,device="cuda");assert x.sum().item()==16;print("CUDA allocation ready")'])
-        os.environ['SGLANG_PYTHON'] = engine_python
-        (STATE / 'runtime.json').write_text(json.dumps({'engine_python': engine_python,
-            'gateway_python': str(gateway_python), 'versions': versions, 'mode': 'native',
-            'hf_home': os.environ['HF_HOME'],
-            **runtime_environment, 'jit_tools': jit_tools,
-            'native_lock_applied': not external_runtime,
-            'native_lock_sha256': dependency_manifest['lock_sha256'] if dependency_manifest else None}, indent=2))
+            dependency_manifest = None
+            if not external_runtime:
+                engine_python = str(gateway_python)
+                dependency_manifest = verify_native_packages(engine_python)
+            else:
+                run([engine_python, '-m', 'pip', 'check'])
+            runtime_environment = configure_runtime_environment(engine_python, gateway_python)
+            ensure_build_prerequisites(engine_python)
+            jit_tools = validate_jit_tools()
+            versions = runtime_versions(engine_python)
+            validate_versions(versions)
+            # Validate real CUDA execution, not just a driver visible to nvidia-smi.
+            run([engine_python, '-c', 'import torch;assert torch.cuda.is_available();'
+                 'x=torch.ones(16,device="cuda");assert x.sum().item()==16;print("CUDA allocation ready")'])
+            os.environ['SGLANG_PYTHON'] = engine_python
+            (STATE / 'runtime.json').write_text(json.dumps({'engine_python': engine_python,
+                'gateway_python': str(gateway_python), 'versions': versions, 'mode': 'native',
+                'hf_home': os.environ['HF_HOME'],
+                **runtime_environment, 'jit_tools': jit_tools,
+                'native_lock_applied': not external_runtime,
+                'native_lock_sha256': dependency_manifest['lock_sha256'] if dependency_manifest else None}, indent=2))
         logs = {STATE/name: {'offset': (STATE/name).stat().st_size if (STATE/name).exists() else 0,
                              'pending': b''}
                 for name in ('supervisor.log', 'engine.log', 'gateway.log')}
@@ -317,7 +340,7 @@ def main():
             forward_logs(logs)
             if healthy(host.replace('0.0.0.0', '127.0.0.1'), port):
                 forward_logs(logs)
-                print('Native SGLang service ready: profile=' + os.environ['BENCH_PROFILE'], flush=True)
+                print(('Contract gateway ready: profile=' if contract_test else 'Native SGLang service ready: profile=') + os.environ['BENCH_PROFILE'], flush=True)
                 return
             time.sleep(1)
         # Stop processes even on failed startup, and preserve diagnostic files.

@@ -8,3 +8,8 @@ __pycache__/
 *.pem
 *.key
 results/**/*.trace.json
+
+# Experimental ledger contains private account state.
+.data/
+*.sqlite3
+*.sqlite3-*

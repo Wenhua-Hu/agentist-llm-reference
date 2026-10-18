@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import importlib.metadata
 import json
 import os
+import hmac
 import time
 import uuid
 import httpx
@@ -11,7 +12,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal
 from .admission import Admission, Overloaded
-from .auth import authorize
+from control_plane.storage import Store, LedgerError
+from control_plane.api import install as install_control_plane
+from control_plane.meter import Counter, Recovery
 from .backend import Backend
 from .config import configuration, MODEL, REVISION
 from .metrics import Metrics
@@ -32,6 +35,7 @@ class Chat(BaseModel):
     stream_options: dict | None = None
 
 class AgentTask(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     task: str = Field(min_length=1, max_length=4000)
     tool_data: dict
 
@@ -61,15 +65,27 @@ async def disconnect_guard(request, coro, timeout):
             job.cancel()
         await asyncio.gather(job, watcher, return_exceptions=True)
 
-def create_app(backend=None, key=None, config=None):
+def create_app(backend=None, key=None, config=None, store=None):
     profile, default_config = configuration()
     cfg = config or default_config
     model = os.environ.get('MODEL_ID', MODEL)
     revision = os.environ.get('MODEL_REVISION', REVISION)
-    backend = backend or Backend()
+    backend = backend or Backend(os.environ.get("ENGINE_BASE_URL", "http://127.0.0.1:30000"))
     key = key if key is not None else os.environ.get('API_KEY', '')
     if not key:
         raise ValueError('API_KEY required')
+    admin_key = os.environ.get('ADMIN_API_KEY', '')
+    if admin_key and hmac.compare_digest(admin_key, key):
+        raise ValueError('ADMIN_API_KEY must differ from API_KEY')
+    if store is None:
+        directory = os.environ.get('DATA_DIR')
+        if not directory:
+            raise ValueError('DATA_DIR required')
+        store = Store(directory, os.environ.get('KEY_HASH_SECRET', ''), model, key)
+    if not admin_key:
+        print('Management API closed: ADMIN_API_KEY is not configured', flush=True)
+    counter = Counter(backend, model, revision, os.environ.get('CONTRACT_TEST') == '1')
+    recovery = Recovery(store, backend)
     gate = Admission(cfg['gateway_slots'], cfg['gateway_queue'])
     metrics = Metrics()
     cleanup_tasks = set()
@@ -87,26 +103,69 @@ def create_app(backend=None, key=None, config=None):
 
     @asynccontextmanager
     async def lifespan(app):
-        yield
+        await recovery.start()
+        try:
+            yield
+        finally:
+            await recovery.close()
         if cleanup_tasks:
             await asyncio.gather(*cleanup_tasks, return_exceptions=True)
         await backend.close()
 
     app = FastAPI(lifespan=lifespan)
+    app.state.store = store
+    app.state.recovery = recovery
     app.state.gate = gate
     app.state.metrics = metrics
 
     @app.middleware('http')
     async def authentication(request, call_next):
         request.state.rid = uuid.uuid4().hex
-        if request.url.path != '/healthz':
+        path = request.url.path
+        if path not in ('/healthz', '/console'):
+            header = request.headers.get('authorization', '')
+            raw = header[7:] if header.startswith('Bearer ') else ''
             try:
-                authorize(request.headers.get('authorization'), key)
-            except HTTPException as exc:
-                return JSONResponse({'error': {'message': exc.detail}}, status_code=exc.status_code)
+                if path.startswith('/admin/'):
+                    if not admin_key or not raw or not hmac.compare_digest(raw, admin_key):
+                        raise LedgerError(401, 'admin_auth_required')
+                else:
+                    request.state.auth = store.authenticate(raw)
+            except LedgerError as exc:
+                return ledger_error(exc)
         response = await call_next(request)
         response.headers['X-Request-ID'] = request.state.rid
+        response.headers['Cache-Control'] = 'no-store'
         return response
+
+    def ledger_error(exc):
+        error = {'code': exc.code, 'message': exc.message}
+        if exc.request_id:
+            error['request_id'] = exc.request_id
+        return JSONResponse({'error': error}, status_code=exc.status,
+                            headers={'Retry-After': '60' if exc.code == 'rpm_limit' else '1'} if exc.status == 429 else {})
+
+    @app.exception_handler(LedgerError)
+    async def ledger_exception(request, exc):
+        return ledger_error(exc)
+
+    install_control_plane(app, store)
+
+    async def begin(request, payload, route, parent=None, rid=None):
+        rid = rid or request.state.rid
+        count = await counter.count(payload) if 'messages' in payload else 0
+        store.reserve(request.state.auth, rid, route, payload, count, payload.get('max_tokens', 0),
+                      request.headers.get('idempotency-key') if not parent else None, parent)
+        recovery.live.add(rid)
+        return rid
+
+    def finish(rid, usage):
+        store.record_usage(rid, usage)
+        store.settle(rid)
+
+    def interrupted(rid):
+        store.fail(rid)
+        recovery.live.discard(rid)
 
     @app.get('/healthz')
     async def health():
@@ -154,24 +213,43 @@ def create_app(backend=None, key=None, config=None):
         handed_off = False
         status = 'failed'
         queue_ms = None
+        admitted = False
+        engine_started = False
         try:
+            payload = body.model_dump(exclude_none=True)
+            await begin(request, payload, '/v1/chat/completions')
+            admitted = True
             await disconnect_guard(request, acquire(), max(.001, deadline-time.monotonic()))
             held = True
             queue_ms = (time.monotonic()-start)*1000
-            payload = body.model_dump(exclude_none=True)
+            store.started(rid)
+            engine_started = True
             if not body.stream:
                 value = await disconnect_guard(request, backend.complete(payload, rid), max(.001, deadline-time.monotonic()))
+                finish(rid, value.get('usage'))
                 status = 'complete'
                 return value
             response = await disconnect_guard(request, backend.stream(payload, rid), max(.001, deadline-time.monotonic()))
             async def generate():
                 stream_status = 'cancelled'
                 stream_error_code = None
+                stream_usage = None
+                stream_finished = False
                 try:
                     async for event in relay(response, deadline):
+                        data = event[5:].strip() if event.startswith('data:') else ''
+                        if data == '[DONE]':
+                            finish(rid, stream_usage)
+                        elif data:
+                            obj = json.loads(data)
+                            if any(c.get('finish_reason') is not None for c in obj.get('choices', [])):
+                                stream_finished = True
+                            if obj.get('usage') and stream_finished:
+                                stream_usage = obj['usage']
+                                store.record_usage(rid, stream_usage)
                         yield event
                     stream_status = 'complete'
-                except (BrokenStream, ValueError, httpx.HTTPError, asyncio.TimeoutError) as exc:
+                except (BrokenStream, ValueError, httpx.HTTPError, asyncio.TimeoutError, LedgerError) as exc:
                     stream_status = 'stream_error'
                     if isinstance(exc, asyncio.TimeoutError):
                         stream_error_code = 'request_timeout'
@@ -185,6 +263,7 @@ def create_app(backend=None, key=None, config=None):
                                                           'message': 'upstream stream failed'}}) + '\n\n'
                 finally:
                     gate.release()
+                    interrupted(rid)
                     if stream_status != 'complete':
                         abort_later(rid)
                     metrics.event(rid, stream_status, start, queue_ms=queue_ms, error_code=stream_error_code)
@@ -207,9 +286,11 @@ def create_app(backend=None, key=None, config=None):
             raise HTTPException(503, 'engine unavailable')
         finally:
             if not handed_off:
+                if admitted:
+                    interrupted(rid)
                 if held:
                     gate.release()
-                if status != 'complete':
+                if engine_started and status != 'complete':
                     abort_later(rid)
                 if response is not None:
                     await response.aclose()
@@ -221,18 +302,30 @@ def create_app(backend=None, key=None, config=None):
         start = time.monotonic()
         held = False
         children = []
+        admitted = False
         async def infer(messages):
             child = rid + '-' + str(len(children))
+            payload = {'model': model, 'messages': messages,
+                       'temperature': 0, 'max_tokens': 160, 'response_format': {'type': 'json_object'}}
+            await begin(request, payload, '/agent/model_call', parent=rid, rid=child)
             children.append(child)
-            value = await backend.complete({'model': model, 'messages': messages,
-                'temperature': 0, 'max_tokens': 160, 'response_format': {'type': 'json_object'}}, child)
+            try:
+                store.started(child)
+                value = await backend.complete(payload, child)
+                finish(child, value.get('usage'))
+            finally:
+                interrupted(child)
             metrics.event(child, 'agent_model_call', start,
                           completion_tokens=value['usage']['completion_tokens'])
             return value
         try:
+            await begin(request, body.model_dump(), '/agent/run')
+            admitted = True
             await disconnect_guard(request, acquire(), 30)
             held = True
-            return await disconnect_guard(request, run_agent(body.task, body.tool_data, infer), max(.001, 40-(time.monotonic()-start)))
+            result = await disconnect_guard(request, run_agent(body.task, body.tool_data, infer), max(.001, 40-(time.monotonic()-start)))
+            finish(rid, {'prompt_tokens': 0, 'completion_tokens': 0})
+            return result
         except ValueError:
             raise HTTPException(422, 'invalid model plan or tool arguments')
         except asyncio.TimeoutError:
@@ -242,6 +335,8 @@ def create_app(backend=None, key=None, config=None):
         except httpx.HTTPError:
             raise HTTPException(503, 'engine unavailable')
         finally:
+            if admitted:
+                interrupted(rid)
             if held:
                 gate.release()
             for child in children:

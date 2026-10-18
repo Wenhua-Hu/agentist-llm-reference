@@ -13,15 +13,16 @@ from agent.tools import execute
 
 class FakeBackend:
     def __init__(self):self.aborts=[];self.healthy=True
+    async def count_input(self,payload):return 1
     async def ready(self):return self.healthy
     async def close(self):pass
     async def abort(self,rid):self.aborts.append(rid)
     async def complete(self,payload,rid):
-        return {'choices':[{'message':{'content':'mock'}}],'usage':{'completion_tokens':1}}
+        return {'choices':[{'message':{'content':'mock'}}],'usage':{'prompt_tokens':1,'completion_tokens':1}}
     async def stream(self,payload,rid):
         return FakeResponse(['data: '+json.dumps({'choices':[{'delta':{'role':'assistant'}}]}),
             'data: '+json.dumps({'choices':[{'delta':{'content':'mock'},'finish_reason':None}]}),
-            'data: '+json.dumps({'choices':[{'delta':{},'finish_reason':'stop'}],'usage':{'completion_tokens':1}}),
+            'data: '+json.dumps({'choices':[{'delta':{},'finish_reason':'stop'}],'usage':{'prompt_tokens':1,'completion_tokens':1}}),
             'data: [DONE]'])
 
 class FakeResponse:
