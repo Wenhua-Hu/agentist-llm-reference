@@ -34,6 +34,18 @@ class FakeResponse:
 def payload(**extra):
     return {'model':MODEL,'messages':[{'role':'user','content':'hello'}],**extra}
 
+def test_initial_metrics_include_zero_cancellation_counter():
+    backend = FakeBackend()
+    app = create_app(backend, key='initial-metrics-key')
+    with TestClient(app) as client:
+        assert client.get('/metrics').status_code == 401
+        response = client.get('/metrics', headers={'Authorization': 'Bearer initial-metrics-key'})
+        assert response.status_code == 200
+        values = response.json()
+        for value in (values['active'], values['queued'], values['counters']['abort_acknowledged']):
+            assert type(value) is int and value == 0
+        assert backend.aborts == []
+
 def test_api_contract_and_auth():
     backend=FakeBackend();app=create_app(backend,key='secret-fixture-789')
     with TestClient(app) as client:

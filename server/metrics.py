@@ -5,7 +5,7 @@ from collections import Counter
 
 class Metrics:
     def __init__(self):
-        self.counts = Counter()
+        self.counts = Counter({'abort_acknowledged': 0})
 
     def event(self, request_id, status, start, **fields):
         self.counts[status] += 1
