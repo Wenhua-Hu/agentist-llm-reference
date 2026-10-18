@@ -62,7 +62,7 @@ bash setup.sh # 显式恢复服务
 
 ## 对最终服务运行公开自测
 
-这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。当前 `benchmarks/acceptance.json` 标注未完成标定，门槛为空时绝不算通过；标定完成后会更新为固定验收版本。
+这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。当前 `benchmarks/acceptance.json` 标注未完成标定，门槛为空时绝不算通过；候选门槛只有经过另一台全新 GPU、相同源码 commit、不同随机 seed 的独立确认后，才能用于正式计分。验收必须完整包含 short/long × 并发 8/16 四项目标，缺项不得按剩余项目折算满分。
 
 ```bash
 # 默认 setup 的项目 venv 已包含所需依赖；API_KEY 与服务启动时相同。
@@ -82,6 +82,8 @@ BENCH_PROFILE=optimized bash setup.sh
 - `benchmarks/serving_benchmark.py`：构造精确 512/1024 chat-template 输入 token 的短/长 JSON 任务，运行并发 1/4/8/16、三轮采样；校验答案的字段、类型和值；用固定 tokenizer 独立计数，不相信服务自报 token 数。
 - `benchmarks/measurement.py`：SSE 事件解析与分位数计算。
 - 输出 `*-serving-raw.jsonl` 保存逐请求结果，`*-serving-summary.json` 保存吞吐、TTFT/TPOT/E2E p95、成功率和正确率；有已标定 SLO 时同时给出 goodput。
+
+测量版本 `controller-sse/2` 区分 `request_timeout`、`upstream_timeout` 和其他流失败；这些请求始终计入失败分母，部分输出不计有效吞吐。历史没有明确错误码的失败不能重新标成超时。
 
 SSE 一次事件可能包含多个 token；`event_gap_p95_ms` 表示流式事件间隔，不冒充逐 token 的精确 ITL。公开自测脚本和输出都可被修改，因此正式分数只能由平台在干净环境独立运行后生成。
 

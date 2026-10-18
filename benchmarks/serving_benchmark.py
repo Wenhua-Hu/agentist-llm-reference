@@ -1,4 +1,5 @@
-"""Public, closed-loop serving self-test. This does not submit official grades.
+"""Public closed-loop serving benchmark. Official grading runs the platform-owned copy.
+Direct CLI output is editable practice evidence, never an official score.
 
 Tokenizer files are fetched at a frozen revision with trust_remote_code=False.
 Text is independently retokenized: counts exclude invisible EOS/control tokens.
@@ -20,10 +21,10 @@ import httpx
 from .measurement import events, percentile
 
 
-def load_tokenizer(config):
+def load_tokenizer(config, local_files_only=False):
     from transformers import AutoTokenizer
     return AutoTokenizer.from_pretrained(config['model_id'], revision=config['model_revision'],
-                                         trust_remote_code=False)
+                                         trust_remote_code=False, local_files_only=local_files_only)
 
 
 def chat_tokens(tokenizer, messages):
@@ -150,7 +151,14 @@ async def request_once(client, base, key, model, item, tokenizer, timeout, ident
                     done = True
                     break
                 obj = json.loads(raw)
-                if not isinstance(obj, dict) or obj.get('error'):
+                if not isinstance(obj, dict):
+                    raise ValueError('stream_error')
+                if obj.get('error'):
+                    error = obj['error']
+                    code = error.get('code') if isinstance(error, dict) else None
+                    if code in ('request_timeout', 'upstream_timeout', 'stream_failure'):
+                        row['error'] = 'sse_' + code
+                        return  # Failed stream; no DONE and never useful output.
                     raise ValueError('stream_error')
                 declared = (obj.get('usage') or {}).get('completion_tokens')
                 if declared is not None:
@@ -230,7 +238,43 @@ def summarize(rows, seconds, slo=None):
     return result
 
 
-def validate_acceptance(config):
+MEASUREMENT_FIELDS = ('schema', 'hardware_contains', 'model_id', 'model_revision', 'dtype',
+    'workload_version', 'measurement_version', 'decoding_policy', 'concurrencies', 'repeats', 'requests_per_repeat',
+    'deadline_seconds', 'warmup_requests', 'workloads')
+REQUIRED_TARGETS = {(w, c) for w in ('short', 'long') for c in (8, 16)}
+
+
+def core_contract_digest(config):
+    core = {k: config[k] for k in MEASUREMENT_FIELDS}
+    core['targets'] = sorted(config['targets'], key=lambda t: (t['workload'], t['concurrency']))
+    return hashlib.sha256(json.dumps(core, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+
+
+def confirmed_acceptance(config):
+    calibration = config.get('calibration') or {}
+    if not isinstance(calibration, dict): return False
+    receipt = calibration.get('independent_confirmation') or {}
+    if not isinstance(receipt, dict): return False
+    try:
+        return (receipt.get('kind') == 'independent_confirmation' and receipt.get('passed') is True and
+            receipt.get('core_contract_sha256') == core_contract_digest(config) and
+            receipt.get('provider') == calibration.get('provider') == 'daytona' and
+            all(isinstance(x, str) and x.strip() for x in (receipt.get('run_id'), receipt.get('instance_id'),
+                calibration.get('run_id'), calibration.get('instance_id'))) and
+            receipt['run_id'] != calibration['run_id'] and receipt['instance_id'] != calibration['instance_id'] and
+            receipt.get('calibration_run_id') == calibration['run_id'] and
+            receipt.get('calibration_instance_id') == calibration['instance_id'] and
+            isinstance(receipt.get('commit_sha'), str) and len(receipt['commit_sha']) == 40 and
+            all(c in '0123456789abcdef' for c in receipt['commit_sha']) and
+            receipt['commit_sha'] == calibration.get('commit_sha') and
+            type(receipt.get('seed')) is int and type(calibration.get('seed')) is int and
+            receipt['seed'] != calibration['seed'] and
+            bool(receipt.get('files_sha256')))
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def validate_acceptance(config, *, allow_provisional=False):
     """Fail closed: no optimistic defaults for unpublished/unknown thresholds."""
     if not neutral_policy(config.get('decoding_policy')):
         raise ValueError('missing or unsupported neutral decoding policy')
@@ -252,14 +296,19 @@ def validate_acceptance(config):
                 raise ValueError('missing/nonpositive threshold: ' + name)
         if any(t[name] > 1 for name in ('slo_attainment_min', 'success_rate_min', 'quality_rate_min')):
             raise ValueError('rate threshold exceeds one')
+    if seen != REQUIRED_TARGETS:
+        raise ValueError('requires exactly short/long targets at concurrency 8 and 16')
+    if not allow_provisional and not confirmed_acceptance(config):
+        raise ValueError('acceptance awaits independent fresh-allocation confirmation')
     return targets
 
 
-def score_performance(config, summaries, manifest, maximum=30):
+def score_performance(config, summaries, manifest, maximum=30, *, allow_provisional=False):
     try:
-        targets = validate_acceptance(config)
+        targets = validate_acceptance(config, allow_provisional=allow_provisional)
     except (ValueError, KeyError, TypeError) as exc:
-        return {'points': 0, 'max': maximum, 'passed': False, 'status': 'uncalibrated', 'detail': str(exc), 'checks': []}
+        return {'points': 0, 'max': maximum, 'passed': False, 'status': 'unconfirmed' if config.get('status') == 'calibrated' else 'uncalibrated',
+                'provisional': config.get('status') == 'calibrated', 'detail': str(exc), 'checks': []}
     identity = (neutral_policy(manifest.get('decoding_policy')) and config['hardware_contains'] in manifest.get('gpu_name', '') and
                 all(manifest.get(k) == config[k] for k in ('model_id', 'model_revision', 'dtype')))
     checks = []
@@ -271,6 +320,7 @@ def score_performance(config, summaries, manifest, maximum=30):
         prerequisites = identity and len(matched) == 1 and row.get('requests', 0) >= minimum_samples and \
             row.get('repeats') == config['repeats'] and row.get('usage_verified') is True and \
             row.get('timing_complete') is True and row.get('workload_version') == config['workload_version'] and \
+            row.get('measurement_version') == config['measurement_version'] and \
             neutral_policy(row.get('decoding_policy'))
         values = []
         for metric, threshold, operation in [
@@ -290,6 +340,7 @@ def score_performance(config, summaries, manifest, maximum=30):
     # Per-workload/concurrency targets are indivisible: speed cannot offset incorrect outputs.
     points = round(maximum * sum(c['passed'] for c in checks)/len(checks), 2)
     return {'points': points, 'max': maximum, 'passed': passed, 'status': 'passed' if passed else 'failed',
+            'provisional': not confirmed_acceptance(config), 'core_contract_sha256': core_contract_digest(config),
             'acceptance_version': config['version'], 'hardware_matches': identity, 'checks': checks}
 
 
@@ -299,7 +350,7 @@ def apply_calibrated_slos(config, summaries, rows):
     No latency/token measurements are changed. Raises on incomplete artifacts.
     Useful for evaluating held-out rehearsal evidence against frozen thresholds.
     """
-    targets = {(t['workload'], t['concurrency']): t for t in validate_acceptance(config)}
+    targets = {(t['workload'], t['concurrency']): t for t in validate_acceptance(config, allow_provisional=True)}
     result = []
     for original in summaries:
         target = targets.get((original['workload'], original['concurrency']))
@@ -318,7 +369,7 @@ async def measure(base, key, profile, config, tokenizer, seed, out, emit=print):
     out.mkdir(parents=True, exist_ok=True)
     summaries, all_rows, warm_rows = [], [], []
     try:
-        target_map = {(t['workload'], t['concurrency']): t for t in validate_acceptance(config)}
+        target_map = {(t['workload'], t['concurrency']): t for t in validate_acceptance(config, allow_provisional=True)}
     except ValueError:
         target_map = {}
     async with httpx.AsyncClient(timeout=None, trust_env=False,
@@ -364,6 +415,7 @@ async def measure(base, key, profile, config, tokenizer, seed, out, emit=print):
                 summary = summarize(case_rows, duration, target_map.get((spec['id'], concurrency)))
                 summary.update({'profile': profile, 'workload': spec['id'], 'concurrency': concurrency,
                     'repeats': config['repeats'], 'workload_version': config['workload_version'],
+                    'measurement_version': config['measurement_version'],
                     'decoding_policy': runtime_decoding_policy(info),
                     'input_tokens': spec['input_tokens'], 'max_output_tokens_requested': spec['max_output_tokens']})
                 summaries.append(summary)
@@ -395,6 +447,7 @@ def main():
     parser.add_argument('--config', type=Path, default=Path(__file__).with_name('acceptance.json'))
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--seed', type=int, required=True, help='Use same fresh seed for both profiles')
+    parser.add_argument('--local-files-only', action='store_true', help='Use cached tokenizer files only; do not download.')
     args = parser.parse_args()
     url = urlsplit(args.base_url)
     if (url.scheme != 'https' and not (url.scheme == 'http' and url.hostname in ('127.0.0.1', 'localhost'))) or \
@@ -412,11 +465,11 @@ def main():
     validate_service_identity(declared, config, args.profile)
     if (args.out / f'{args.profile}-benchmark-manifest.json').exists():
         parser.error('Output already contains this profile; use a fresh directory')
-    tokenizer = load_tokenizer(config)
+    tokenizer = load_tokenizer(config, local_files_only=args.local_files_only)
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out/f'{args.profile}-benchmark-manifest.json').write_text(json.dumps({
         'acceptance': config, 'seed': args.seed, 'load_model': 'closed_loop',
-        'measurement_location': 'public_self_test', 'official_grade': False,
+        'measurement_location': 'public_self_test', 'official_grade': False, 'official_score': False,
         'declared_service': declared,
         'config_sha256': hashlib.sha256(args.config.read_bytes()).hexdigest()}, indent=2))
     asyncio.run(measure(args.base_url, key, args.profile, config, tokenizer, args.seed, args.out))

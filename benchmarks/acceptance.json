@@ -39,7 +39,8 @@
     "Per-run inputs are fresh; only shape warmup is reused. Both profiles get identical measured prompts. Cache hits are permitted and must be reported separately in cache-specific tests.",
     "Model, hardware, dtype, exact chat-template input lengths and maximum output lengths are part of the acceptance contract. Output length is model-determined and recorded; correctness is a prerequisite for counting useful throughput.",
     "Closed-loop structured extraction with shared padding, not general LLM throughput. Common padding prefixes may benefit RadixAttention; dedicated shared/unique prefix on/off tests remain separate evidence.",
-    "Neutral decoding is fixed: temperature=0 in requests, SGLang --sampling-defaults=openai, repetition_penalty=1, top_p=1, top_k=-1. Runtime declarations are checked for both profiles; model-inherited sampling defaults cannot be mixed into calibration."
+    "Neutral decoding is fixed: temperature=0 in requests, SGLang --sampling-defaults=openai, repetition_penalty=1, top_p=1, top_k=-1. Runtime declarations are checked for both profiles; model-inherited sampling defaults cannot be mixed into calibration.",
+    "Controller measurement v2 retains explicit request_timeout/upstream_timeout SSE errors as failed timeout rows. Missing or generic error codes remain protocol failures; historical raw rows are never reclassified."
   ],
   "decoding_policy": {
     "temperature": 0,
@@ -47,5 +48,6 @@
     "top_p": 1.0,
     "top_k": -1,
     "sampling_defaults": "openai"
-  }
+  },
+  "measurement_version": "controller-sse/2"
 }
