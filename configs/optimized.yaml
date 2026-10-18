@@ -3,7 +3,7 @@ dtype: bfloat16
 max_running_requests: 32
 max_total_tokens: 16384
 max_prefill_tokens: 4096
-mem_fraction_static: 0.65
+mem_fraction_static: 0.8
 attention_backend: flashinfer
 prefix_cache: true
 gateway_slots: 32

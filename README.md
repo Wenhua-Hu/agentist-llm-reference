@@ -31,8 +31,8 @@ export ADMIN_API_KEY="$(openssl rand -hex 32)"
 export KEY_HASH_SECRET="$(openssl rand -hex 32)"
 export DATA_DIR="$PWD/.data"
 # 将这些变量保存在受限的环境配置中；重启复用相同 KEY_HASH_SECRET / DATA_DIR。
-export MODEL_ID=Qwen/Qwen2.5-1.5B-Instruct
-export MODEL_REVISION=989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+export MODEL_ID=Qwen/Qwen2.5-7B-Instruct
+export MODEL_REVISION=a09a35458c702b33eeacc393d103063234e8bc28
 export BENCH_PROFILE=baseline
 export HF_HOME="$HOME/.cache/huggingface"
 bash setup.sh
@@ -45,7 +45,7 @@ curl -fsS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8000/info
 ```bash
 curl -N http://127.0.0.1:8000/v1/chat/completions \
   -H "Authorization: Bearer $API_KEY" -H 'Content-Type: application/json' \
-  -d '{"model":"Qwen/Qwen2.5-1.5B-Instruct","messages":[{"role":"user","content":"Explain KV caching in one sentence."}],"max_tokens":96,"stream":true}'
+  -d '{"model":"Qwen/Qwen2.5-7B-Instruct","messages":[{"role":"user","content":"Explain KV caching in one sentence."}],"max_tokens":96,"stream":true}'
 ```
 
 ## 代码入口
@@ -78,10 +78,14 @@ curl -N http://127.0.0.1:8000/v1/chat/completions \
 
 ## 显式运行实验
 
+候选服务固定 `Qwen/Qwen2.5-7B-Instruct` revision `a09a35458c702b33eeacc393d103063234e8bc28`、BF16；baseline/optimized 的静态显存比例均为 0.8，尚需新 GPU 验证，旧性能报告不证明本候选通过。KV 原理实验独立固定 `Qwen/Qwen2.5-1.5B-Instruct` revision `989aa7980e4cf806f80c7fef2b1adb7bc71aa306`、FP32（禁用 TF32），保留 0.001 最大绝对误差与 100% top-1 门槛；7B 的 FP32 权重超过 24 GiB，不能在该 GPU 上直接替换原理模型。prefix 使用服务 7B；attention 使用合成 Q/K/V，7B 仅标记服务上下文，不加载模型权重。入口默认按 case 选择模型，显式错误模型/revision或 KV dtype 会被拒绝，不能静默改写 manifest。
+
 先运行一次 setup 安装固定环境。以下每个命令会停服务，独占 GPU；不会偷偷与服务同时加载两个模型。每个输出目录只能写一次，重跑需换目录。
 
 ```bash
-bash experiments/run.sh --case kv --out results/kv/run-1
+MODEL_ID=Qwen/Qwen2.5-1.5B-Instruct \
+MODEL_REVISION=989aa7980e4cf806f80c7fef2b1adb7bc71aa306 \
+  bash experiments/run.sh --case kv --out results/kv/run-1
 bash experiments/run.sh --case attention --out results/attention/run-1
 bash experiments/run.sh --case prefix --out results/prefix/run-1
 bash setup.sh # 显式恢复服务
@@ -92,16 +96,18 @@ bash setup.sh # 显式恢复服务
 
 ## 对最终服务运行公开自测
 
-这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。当前 `benchmarks/acceptance.json` 标注未完成标定，门槛为空时绝不算通过；候选门槛只有经过另一台全新 GPU、相同源码 commit、不同随机 seed 的独立确认后，才能用于正式计分。验收必须完整包含 short/long × 并发 8/16 四项目标，缺项不得按剩余项目折算满分。
+这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。当前 7B 候选自测必须显式选择 `--config benchmarks/acceptance-v4.pending.json`（prose padding + JSON 模式，未完成标定）；默认 `benchmarks/acceptance.json` 仍是旧 1.5B 合同，身份不符时会拒绝运行。门槛为空时绝不算通过；候选门槛只有经过另一台全新 GPU、相同源码 commit、不同随机 seed 的独立确认后，才能用于正式计分。验收必须完整包含 short/long × 并发 8/16 四项目标，缺项不得按剩余项目折算满分。
 
 ```bash
 # 默认 setup 的项目 venv 已包含所需依赖；API_KEY 与服务启动时相同。
 BENCH_PROFILE=baseline bash setup.sh
 .venv/bin/python -m benchmarks.serving_benchmark \
+  --config benchmarks/acceptance-v4.pending.json \
   --base-url http://127.0.0.1:8000 --profile baseline \
   --seed 20261017 --out results/self-test/run-1
 BENCH_PROFILE=optimized bash setup.sh
 .venv/bin/python -m benchmarks.serving_benchmark \
+  --config benchmarks/acceptance-v4.pending.json \
   --base-url http://127.0.0.1:8000 --profile optimized \
   --seed 20261017 --out results/self-test/run-1
 ```

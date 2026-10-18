@@ -34,6 +34,19 @@ summary 的 `balance_micro_usd` 是尚未扣除预占的总余额，`available_m
 
 按 tenant 选取账单后，可用每行的 key_id/model/created_at 分组，跨页加总明细与 summary 核对。`from/to` 过滤计费窗口，余额与预占仍表示当前 tenant 状态；summary 中 used_tokens 是终身 quota 计数。
 
+## 结构化推理的 JSON 模式
+
+`POST /v1/chat/completions` 支持标准 OpenAI 参数
+`"response_format": {"type": "json_object"}`，流式和非流式都可使用。
+Agent 与性能测试中的结构化任务可以显式请求这一模式，由 SGLang 约束生成 JSON
+对象。当前只接受 `json_object`；其他类型、缺少 type 或附加字段均返回 422。
+省略该参数或传 null 保持原有行为，不自动启用 JSON 模式。
+
+网关原样透传此参数，不修改 messages、模型选择或 token 计数，也不去掉 Markdown
+围栏、补字段、解析或重写生成内容。JSON 模式只约束输出格式，字段类型、必填内容及
+语义正确性仍须由调用方严格校验；它不保证模型提取的值正确。计费仍使用实际输入计数
+和引擎返回的真实 usage。内置 `/agent/run` 的模型调用也使用 `json_object` 模式。
+
 ## 预占、计费与幂等
 
 正式服务用固定 model revision 的 tokenizer 和 `apply_chat_template(add_generation_prompt=True)` 计算真实输入 token。计数包含 system/user/assistant 文本与 chat template，不能相信客户端提交的 usage、cost、user_id（公开模型禁止这些字段）。前缀命中仍按输入计费，cached_tokens 另记；精确服务计数与引擎 usage 不一致时返回错误并走未知用量对账，不捏造费用。

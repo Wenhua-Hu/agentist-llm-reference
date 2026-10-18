@@ -3,8 +3,11 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-MODEL = 'Qwen/Qwen2.5-1.5B-Instruct'
-REVISION = '989aa7980e4cf806f80c7fef2b1adb7bc71aa306'
+MODEL = 'Qwen/Qwen2.5-7B-Instruct'
+REVISION = 'a09a35458c702b33eeacc393d103063234e8bc28'
+
+KV_MODEL = 'Qwen/Qwen2.5-1.5B-Instruct'
+KV_REVISION = '989aa7980e4cf806f80c7fef2b1adb7bc71aa306'
 
 def configuration():
     profile = os.environ.get('BENCH_PROFILE', 'baseline')

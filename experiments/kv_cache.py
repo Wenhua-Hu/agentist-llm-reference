@@ -4,12 +4,15 @@ import time
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from .common import Evidence, tensor_hash, entry
+from server.config import KV_MODEL, KV_REVISION
 
 def main():
     dtype_name=os.environ.get('KV_DTYPE','float32')
-    if dtype_name not in ('bfloat16','float32'): raise ValueError('KV_DTYPE must be bfloat16 or float32')
+    if (os.environ.get('MODEL_ID') != KV_MODEL or os.environ.get('MODEL_REVISION') != KV_REVISION
+            or dtype_name != 'float32'):
+        raise ValueError('KV experiment requires pinned 1.5B model/revision and float32')
     dtype=getattr(torch,dtype_name)
-    atol,rtol=(.15,.02) if dtype_name=='bfloat16' else (.001,.0001)
+    atol,rtol=.001,.0001
     torch.backends.cuda.matmul.allow_tf32=False
     torch.backends.cudnn.allow_tf32=False
     parameters={'lengths':[128,512],'decode_tokens':32,'warmup':1,'repeats':3,

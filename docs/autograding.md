@@ -34,11 +34,11 @@ bash experiments/run.sh --case prefix --out results/platform-<随机运行标识
 bash experiments/run.sh --case attention --out results/platform-<随机运行标识>/attention
 ```
 
-入口必须支持任意上述新目录，不读取已有提交结果冒充新实测。可以停止自己的服务、运行实验；三个入口连续执行时必须均可工作。环境提供 MODEL_ID、MODEL_REVISION；固定模型为 Qwen/Qwen2.5-1.5B-Instruct，revision 989aa7980e4cf806f80c7fef2b1adb7bc71aa306。平台 clone 整个指定 commit，实验运行在 GPU，评分在控制端完成。实验退出非零时仍采集有效原始记录，所以数值错误不抹去其他通过项。
+入口必须支持任意上述新目录，不读取已有提交结果冒充新实测。可以停止自己的服务、运行实验；三个入口连续执行时必须均可工作。平台按 case 提供 MODEL_ID、MODEL_REVISION：kv 独立固定 Qwen/Qwen2.5-1.5B-Instruct，revision 989aa7980e4cf806f80c7fef2b1adb7bc71aa306，FP32；prefix 使用候选服务 Qwen/Qwen2.5-7B-Instruct，revision a09a35458c702b33eeacc393d103063234e8bc28，BF16；attention 为合成张量实验，以同一 7B 身份标记服务上下文，不加载权重。入口拒绝不匹配的显式模型/revision，不能把 7B 的服务参数传给 kv。平台 clone 整个指定 commit，实验运行在 GPU，评分在控制端完成。实验退出非零时仍采集有效原始记录，所以数值错误不抹去其他通过项。
 
 三项分别自动计 10 分，总计 30 分；最终服务性能另计 30 分，不再采用旧版“对照数据齐全即可得分”的规则。每项采用以下 6 个自动检查组，分值依次为 2/2/1/1/2/2。每组全部满足得满分，否则该组 0 分；报告逐组显示依据。原理实验没有加速不扣分，不因失败放宽容差；这不豁免最终服务的版本化吞吐/延迟门槛。原始数据是实验程序产生的测量证据，平台独立核对字段和计算，不将自报 points、quality_pass、summary.pass 或退出码直接当成成绩，也不宣称这些记录完全防伪。
 
-参考实现的 KV 数学等价实验默认 FP32、禁用 TF32；更严格的 FP32 误差阈值保持不变。最终服务固定 BF16，服务正确性和性能由另一路独立测试。历史 BF16 微实验失败保留，显式 `KV_DTYPE=bfloat16` 可继续诊断，不将 FP32 结果冒称为 BF16 数值通过。
+参考实现的 KV 数学等价实验默认 FP32、禁用 TF32；更严格的 FP32 误差阈值保持不变。最终服务固定 BF16，服务正确性和性能由另一路独立测试。历史 BF16 微实验失败保留；当前 KV 入口只接受 FP32，不将 FP32 结果冒称为 BF16 数值通过。
 
 ### KV Cache 与显存管理：10 分
 

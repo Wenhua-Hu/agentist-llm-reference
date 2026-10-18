@@ -1,5 +1,5 @@
 {
-  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
   "input_micro_usd_per_token": 2,
   "output_micro_usd_per_token": 6,
   "unit": "microUSD",

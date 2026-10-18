@@ -25,6 +25,10 @@ class Message(BaseModel):
     role: Literal['system', 'user', 'assistant']
     content: str = Field(min_length=1, max_length=24000)
 
+class JSONResponseFormat(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    type: Literal['json_object']
+
 class Chat(BaseModel):
     model_config = ConfigDict(extra='forbid')
     model: str
@@ -33,6 +37,7 @@ class Chat(BaseModel):
     temperature: float = Field(default=0, ge=0, le=2)
     stream: bool = False
     stream_options: dict | None = None
+    response_format: JSONResponseFormat | None = None
 
 class AgentTask(BaseModel):
     model_config = ConfigDict(extra="forbid")

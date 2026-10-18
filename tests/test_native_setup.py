@@ -236,7 +236,7 @@ def test_contract_setup_installs_only_gateway_and_never_starts_or_checks_gpu(tmp
     state=tmp_path/'runtime'
     monkeypatch.setattr(native,'STATE',state)
     monkeypatch.setattr(native.sys,'argv',['native_setup.py','--contract-test'])
-    for key,value in {'API_KEY':'ordinary-test-key','MODEL_ID':'Qwen/Qwen2.5-1.5B-Instruct',
+    for key,value in {'API_KEY':'ordinary-test-key','MODEL_ID':'Qwen/Qwen2.5-7B-Instruct',
                       'MODEL_REVISION':'fixed-test-revision','BENCH_PROFILE':'optimized',
                       'ENGINE_BASE_URL':'http://127.0.0.1:30001'}.items():monkeypatch.setenv(key,value)
     calls=[]

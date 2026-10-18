@@ -15,8 +15,20 @@ case "$case_name" in
 esac
 [[ "$out" == results/* && "$out" != *..* ]] || { echo '--out must be under results/'; exit 2; }
 [[ -f .runtime/image || -f .runtime/runtime.json ]] || { echo 'Run setup.sh once to install pinned environment'; exit 1; }
-export MODEL_ID="${MODEL_ID:-Qwen/Qwen2.5-1.5B-Instruct}"
-export MODEL_REVISION="${MODEL_REVISION:-989aa7980e4cf806f80c7fef2b1adb7bc71aa306}"
+# A principle experiment has its own pinned identity; never relabel a service
+# model as a different experiment model after accepting caller configuration.
+if [[ "$case_name" == kv ]]; then
+  expected_model=Qwen/Qwen2.5-1.5B-Instruct
+  expected_revision=989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  [[ "${KV_DTYPE-float32}" == float32 ]] || { echo 'KV experiment requires float32'; exit 2; }
+  export KV_DTYPE=float32
+else
+  expected_model=Qwen/Qwen2.5-7B-Instruct
+  expected_revision=a09a35458c702b33eeacc393d103063234e8bc28
+fi
+[[ "${MODEL_ID-$expected_model}" == "$expected_model" && "${MODEL_REVISION-$expected_revision}" == "$expected_revision" ]] || { echo 'Experiment model identity differs from the pinned case contract'; exit 2; }
+export MODEL_ID="${MODEL_ID-$expected_model}"
+export MODEL_REVISION="${MODEL_REVISION-$expected_revision}"
 if [[ -f .runtime/runtime.json ]]; then
   # A fresh SSH shell does not inherit setup.sh's environment. Reuse its cache,
   # while allowing an explicit caller override. JSON values remain literal data.
@@ -34,7 +46,7 @@ if [[ -f .runtime/runtime.json ]]; then
   export CUDA_HOME=$(python3 -c 'import json,os; r=json.load(open(".runtime/runtime.json")); print(r.get("cuda_home") or os.environ.get("CUDA_HOME","/usr/local/cuda"))')
   export PATH="$engine_bin:$gateway_bin:$CUDA_HOME/bin:$PATH"
   export SGLANG_PYTHON="$engine_python" SOURCE_COMMIT="$(git rev-parse HEAD)"
-  export HF_HUB_DISABLE_XET=1 KV_DTYPE="${KV_DTYPE:-float32}"
+  export HF_HUB_DISABLE_XET=1 KV_DTYPE="${KV_DTYPE-float32}"
   "$engine_python" -m "experiments.$module" --out "$out"
   echo 'Experiment finished; run setup.sh explicitly to restart serving.'
   exit 0
@@ -50,6 +62,6 @@ mkdir -p "$out"
 sudo -n docker run --rm --gpus all --network host --shm-size 4g --entrypoint python3 \
   -v "$PWD:/app:ro" -v "$PWD/results:/app/results" -v "$HF_HOME:/hf" \
   -e "MODEL_ID=$MODEL_ID" -e "MODEL_REVISION=$MODEL_REVISION" -e HF_HOME=/hf \
-  -e "SOURCE_COMMIT=$(git rev-parse HEAD)" -e HF_HUB_DISABLE_XET=1 -e "KV_DTYPE=${KV_DTYPE:-float32}" \
+  -e "SOURCE_COMMIT=$(git rev-parse HEAD)" -e HF_HUB_DISABLE_XET=1 -e "KV_DTYPE=${KV_DTYPE-float32}" \
   "$image" -m "experiments.$module" --out "$out"
 echo 'Experiment finished; run setup.sh explicitly to restart serving.'

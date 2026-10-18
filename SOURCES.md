@@ -2,8 +2,9 @@
 
 参考工程的网关、部署、Agent、实验编排和测试为本项目实现。
 
-- SGLang v0.5.2，Apache-2.0；源代码 commit `b0d25e72c401f37b55d689ddbf05b8c583afe854`。镜像 digest 固定于 Dockerfile。
-- Qwen2.5-1.5B-Instruct，revision 固定于 README；遵循模型仓库许可证，不将权重提交到本仓库。
+- 当前 native SGLang v0.5.9，由 requirements-runtime.lock 固定完整依赖闭包。以下源码行号和旧 Docker 镜像来自历史 SGLang v0.5.2，Apache-2.0；源代码 commit `b0d25e72c401f37b55d689ddbf05b8c583afe854`。镜像 digest 固定于 Dockerfile。
+- 候选服务：[Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct)，revision `a09a35458c702b33eeacc393d103063234e8bc28`，BF16。
+- KV 原理实验：[Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct)，revision `989aa7980e4cf806f80c7fef2b1adb7bc71aa306`，FP32。两者遵循模型仓库许可证，不将权重提交到本仓库。历史性能记录保留原模型身份。
 - PyTorch / Transformers / FastAPI / httpx 等保持各自许可证；Python依赖及引擎镜像锁定。
 - `experiments/measurement.py` 复用 Agentist Project 2 提供的测量脚手架，保留原始客户端计时、SSE和质量检查语义；`serving_bench.py` 为本项目编排。
 
