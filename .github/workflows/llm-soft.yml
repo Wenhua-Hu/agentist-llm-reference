@@ -45,7 +45,7 @@ jobs:
           root = Path(os.environ['RUNNER_TEMP']) / 'llm-soft-tools'
           root.mkdir(exist_ok=False)
           pins = {'soft_runner.py': 'ed9f4f45e2e5cba23bf4c67d58be9ce10e69576e8bdd36904c442788354676cb', 'soft_check.py': '43878383b810358a5dbd8a796c94acd3f6cb39fc8665929a2d5354f079eb65db', 'credential_fixture.py': 'ef860b68237f946d2394f00e48eb2f8d3c17bded84861542232cefbeed66d19c'}
-          base = 'https://test.lab.parallight.ai/lab/llm-lab/soft/'
+          base = 'https://agentist.org/lab/llm-lab/soft/'
           for name, digest in pins.items():
               url = base + name
               with urllib.request.urlopen(url, timeout=30) as response:
