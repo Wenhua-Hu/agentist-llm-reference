@@ -300,6 +300,7 @@ def main():
         os.environ['SGLANG_PYTHON'] = engine_python
         (STATE / 'runtime.json').write_text(json.dumps({'engine_python': engine_python,
             'gateway_python': str(gateway_python), 'versions': versions, 'mode': 'native',
+            'hf_home': os.environ['HF_HOME'],
             **runtime_environment, 'jit_tools': jit_tools,
             'native_lock_applied': not external_runtime,
             'native_lock_sha256': dependency_manifest['lock_sha256'] if dependency_manifest else None}, indent=2))

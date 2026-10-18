@@ -17,8 +17,13 @@ esac
 [[ -f .runtime/image || -f .runtime/runtime.json ]] || { echo 'Run setup.sh once to install pinned environment'; exit 1; }
 export MODEL_ID="${MODEL_ID:-Qwen/Qwen2.5-1.5B-Instruct}"
 export MODEL_REVISION="${MODEL_REVISION:-989aa7980e4cf806f80c7fef2b1adb7bc71aa306}"
-export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 if [[ -f .runtime/runtime.json ]]; then
+  # A fresh SSH shell does not inherit setup.sh's environment. Reuse its cache,
+  # while allowing an explicit caller override. JSON values remain literal data.
+  if [[ -z "${HF_HOME:-}" ]]; then
+    HF_HOME=$(python3 -c 'import json,os; r=json.load(open(".runtime/runtime.json")); v=r.get("hf_home"); print(v if isinstance(v,str) and v else os.path.join(os.path.expanduser("~"),".cache/huggingface"))')
+  fi
+  export HF_HOME
   # Stop our managed processes, never unrelated processes in the sandbox.
   bash setup.sh --stop
   exec 9>.runtime/setup.lock; flock -w 10 9
@@ -34,6 +39,7 @@ if [[ -f .runtime/runtime.json ]]; then
   echo 'Experiment finished; run setup.sh explicitly to restart serving.'
   exit 0
 fi
+export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 image=$(cat .runtime/image)
 exec 9>.runtime/setup.lock; flock -w 10 9
 owner=$(sudo -n docker inspect -f '{{index .Config.Labels "agentist.project"}}' agentist-llm-reference 2>/dev/null || true)
