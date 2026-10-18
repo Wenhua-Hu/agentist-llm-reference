@@ -13,6 +13,10 @@ import weakref
 
 WORKLOAD_V3 = 'typed-json-prose-padding-exact-input/3'
 WORKLOAD_V4 = 'typed-json-prose-json-mode-exact-input/4'
+WORKLOAD_V5 = 'typed-json-numbered-records-prose-exact-input/5'
+NUMBERED_ORDER_INSTRUCTION = (' Return records in the input order of Record numbers 1 through 8. '
+    'Do not group or sort records by city, id, or units. Record numbers specify order only; '
+    'do not add them to the output JSON.')
 JSON_RESPONSE_FORMAT = {'type': 'json_object'}
 BANK_SHA256 = '84e28c0006bf3fb30049caaa505cf2bd2f3e2ea5d9f1f34a190ba2aa4936dcbf'
 TAILS = ('Rain falls.', 'Leaves move.', 'The room is quiet.', 'A soft breeze passes.',
@@ -89,3 +93,21 @@ def build_workload_v3(tokenizer, spec, seed, count, *, v1_builder, bank_path=Non
         # No answer repairs, output truncation, seed retries or caller data mutation.
         items.append(item)
     return items
+
+
+def build_workload_v5(tokenizer, spec, seed, count, *, v1_builder, bank_path=None):
+    """Only long inputs gain numbered records and an explicit strict-order instruction."""
+    def numbered_originals(tokenizer, spec, seed, count):
+        originals=v1_builder(tokenizer,spec,seed,count)
+        if spec['records']==1:return originals
+        if spec['records']!=8:raise ValueError('v5 requires exactly eight long records')
+        for item in originals:
+            item['messages'][0]['content']+=NUMBERED_ORDER_INSTRUCTION
+            prefix,records=item['messages'][1]['content'].split('\nRecords:\n',1)
+            lines=records.splitlines()
+            if len(lines)!=8 or any(not line.startswith('Record: ') for line in lines):
+                raise ValueError('v5 requires original unmodified v1 record lines')
+            numbered=[f'Record {i}: '+line[len('Record: '):] for i,line in enumerate(lines,1)]
+            item['messages'][1]['content']=prefix+'\nRecords:\n'+'\n'.join(numbered)
+        return originals
+    return build_workload_v3(tokenizer,spec,seed,count,v1_builder=numbered_originals,bank_path=bank_path)

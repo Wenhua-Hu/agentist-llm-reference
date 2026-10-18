@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 import httpx
 from .measurement import events, percentile
-from .prose_workload import WORKLOAD_V3, WORKLOAD_V4, JSON_RESPONSE_FORMAT, BANK_SHA256, build_workload_v3
+from .prose_workload import WORKLOAD_V3, WORKLOAD_V4, WORKLOAD_V5, JSON_RESPONSE_FORMAT, BANK_SHA256, build_workload_v3, build_workload_v5
 
 
 def load_tokenizer(config, local_files_only=False):
@@ -34,7 +34,7 @@ def chat_tokens(tokenizer, messages):
 
 WORKLOAD_V1 = "typed-json-exact-input/1"
 WORKLOAD_V2 = "json-literal-copy-exact-input/2"
-SUPPORTED_WORKLOADS = {WORKLOAD_V1, WORKLOAD_V2, WORKLOAD_V3, WORKLOAD_V4}
+SUPPORTED_WORKLOADS = {WORKLOAD_V1, WORKLOAD_V2, WORKLOAD_V3, WORKLOAD_V4, WORKLOAD_V5}
 
 NEUTRAL_DECODING = {"temperature": 0, "repetition_penalty": 1.0, "top_p": 1.0,
                     "top_k": -1, "sampling_defaults": "openai"}
@@ -62,9 +62,10 @@ def build_workload(tokenizer, spec, seed, count, workload_version=WORKLOAD_V1):
     """Exact *chat-template* input length, with controller-generated JSON answers."""
     if workload_version not in SUPPORTED_WORKLOADS:
         raise ValueError('unsupported workload version')
-    if workload_version in (WORKLOAD_V3, WORKLOAD_V4):
-        items = build_workload_v3(tokenizer, spec, seed, count, v1_builder=build_workload)
-        if workload_version == WORKLOAD_V4:
+    if workload_version in (WORKLOAD_V3, WORKLOAD_V4, WORKLOAD_V5):
+        builder = build_workload_v5 if workload_version == WORKLOAD_V5 else build_workload_v3
+        items = builder(tokenizer, spec, seed, count, v1_builder=build_workload)
+        if workload_version in (WORKLOAD_V4, WORKLOAD_V5):
             for item in items:item['response_format'] = dict(JSON_RESPONSE_FORMAT)
         return items
     rng = random.Random(seed)
@@ -254,16 +255,16 @@ REQUIRED_TARGETS = {(w, c) for w in ('short', 'long') for c in (8, 16)}
 
 def measurement_fields(config):
     version = config.get('workload_version')
-    return MEASUREMENT_FIELDS + (('prose_bank_sha256',) if version in (WORKLOAD_V3, WORKLOAD_V4) else ()) + \
-        (('response_format',) if version == WORKLOAD_V4 else ())
+    return MEASUREMENT_FIELDS + (('prose_bank_sha256',) if version in (WORKLOAD_V3, WORKLOAD_V4, WORKLOAD_V5) else ()) + \
+        (('response_format',) if version in (WORKLOAD_V4, WORKLOAD_V5) else ())
 
 
 def validate_workload_contract(config):
     if config.get('workload_version') not in SUPPORTED_WORKLOADS:
         raise ValueError('unsupported workload version')
-    if config.get('workload_version') in (WORKLOAD_V3, WORKLOAD_V4) and config.get('prose_bank_sha256') != BANK_SHA256:
+    if config.get('workload_version') in (WORKLOAD_V3, WORKLOAD_V4, WORKLOAD_V5) and config.get('prose_bank_sha256') != BANK_SHA256:
         raise ValueError('missing or mismatched frozen prose bank')
-    if config.get('workload_version') == WORKLOAD_V4 and config.get('response_format') != JSON_RESPONSE_FORMAT:
+    if config.get('workload_version') in (WORKLOAD_V4, WORKLOAD_V5) and config.get('response_format') != JSON_RESPONSE_FORMAT:
         raise ValueError('missing or mismatched JSON response_format')
 
 
@@ -346,7 +347,7 @@ def score_performance(config, summaries, manifest, maximum=30, *, allow_provisio
             row.get('timing_complete') is True and row.get('workload_version') == config['workload_version'] and \
             row.get('measurement_version') == config['measurement_version'] and \
             neutral_policy(row.get('decoding_policy')) and \
-            (config['workload_version'] != WORKLOAD_V4 or row.get('response_format') == JSON_RESPONSE_FORMAT)
+            (config['workload_version'] not in (WORKLOAD_V4, WORKLOAD_V5) or row.get('response_format') == JSON_RESPONSE_FORMAT)
         values = []
         for metric, threshold, operation in [
             ('output_tokens_per_second', 'output_tokens_per_second_min', 'min'),
@@ -444,7 +445,7 @@ async def measure(base, key, profile, config, tokenizer, seed, out, emit=print):
                     'measurement_version': config['measurement_version'],
                     'decoding_policy': runtime_decoding_policy(info),
                     'input_tokens': spec['input_tokens'], 'max_output_tokens_requested': spec['max_output_tokens']})
-                if config['workload_version'] == WORKLOAD_V4:summary['response_format'] = dict(JSON_RESPONSE_FORMAT)
+                if config['workload_version'] in (WORKLOAD_V4, WORKLOAD_V5):summary['response_format'] = dict(JSON_RESPONSE_FORMAT)
                 summaries.append(summary)
                 all_rows.extend(case_rows)
                 emit(json.dumps(summary))

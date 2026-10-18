@@ -2,13 +2,13 @@ import copy,hashlib,json,random,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 from benchmarks.prose_workload import Fitter,BANK_SHA256,chat_ids,split_v1
-from benchmarks.serving_benchmark import WORKLOAD_V1,WORKLOAD_V3,WORKLOAD_V4,JSON_RESPONSE_FORMAT,build_workload,core_contract_digest,validate_workload_contract,measure
+from benchmarks.serving_benchmark import WORKLOAD_V1,WORKLOAD_V3,WORKLOAD_V4,WORKLOAD_V5,JSON_RESPONSE_FORMAT,build_workload,core_contract_digest,validate_workload_contract,measure
 class WordTokenizer:
  def apply_chat_template(self,messages,**kwargs):return list(range(6+sum(1 if word=='z' else 2 for m in messages for word in m['content'].split())))
 class ProseTests(unittest.TestCase):
- def test_current_v4_default_and_historical_v3_bank_are_frozen(self):
+ def test_current_v5_default_and_historical_v3_bank_are_frozen(self):
   root=Path(__file__).resolve().parents[1]/'benchmarks'
-  self.assertEqual(json.loads((root/'acceptance.json').read_text())['workload_version'],WORKLOAD_V4)
+  self.assertEqual(json.loads((root/'acceptance.json').read_text())['workload_version'],WORKLOAD_V5)
   pending=json.loads((root/'acceptance-v3.pending.json').read_text())
   self.assertEqual(pending['workload_version'],WORKLOAD_V3);self.assertIsNone(pending['targets']);self.assertEqual(pending['status'],'uncalibrated')
   self.assertEqual(hashlib.sha256((root/'prose-bank.txt').read_bytes()).hexdigest(),BANK_SHA256)
@@ -52,6 +52,34 @@ class ProseTests(unittest.TestCase):
      self.assertEqual(b,{**a,'response_format':JSON_RESPONSE_FORMAT})
      self.assertNotIn('response_format',a)
      self.assertEqual(len(chat_ids(t,b['messages'])),spec['input_tokens'])
+ def test_v5_numbers_only_long_records_and_preserves_strict_order(self):
+  from benchmarks.prose_workload import NUMBERED_ORDER_INSTRUCTION
+  from benchmarks.serving_benchmark import output_valid
+  t=WordTokenizer();root=Path(__file__).resolve().parents[1]/'benchmarks'
+  config=json.loads((root/'acceptance-v5.pending.json').read_text())
+  self.assertEqual(config['workload_version'],WORKLOAD_V5);validate_workload_contract(config)
+  self.assertEqual(config,json.loads((root/'acceptance.json').read_text()))
+  config['targets']=[];digest=core_contract_digest(config)
+  for field,value in [('response_format',None),('prose_bank_sha256','0'*64)]:
+   bad={**config,field:value}
+   with self.assertRaises(ValueError):validate_workload_contract(bad)
+   self.assertNotEqual(digest,core_contract_digest(bad))
+  for spec in config['workloads']:
+   for seed in range(2026101811,2026101815):
+    old=build_workload(t,spec,seed,8,WORKLOAD_V4);new=build_workload(t,spec,seed,8,WORKLOAD_V5)
+    self.assertEqual(len(new),8)
+    for a,b in zip(old,new):
+     self.assertEqual(len(chat_ids(t,b['messages'])),spec['input_tokens'])
+     self.assertEqual({k:v for k,v in a.items() if k!='messages'},{k:v for k,v in b.items() if k!='messages'})
+     if spec['records']==1:self.assertEqual(a,b)
+     else:
+      self.assertEqual(b['messages'][0]['content'],a['messages'][0]['content']+NUMBERED_ORDER_INSTRUCTION)
+      lines=a['messages'][1]['content'].split('\nRecords:\n')[1].splitlines()
+      numbered=b['messages'][1]['content'].split('\nRecords:\n')[1].splitlines()
+      self.assertEqual(numbered,[f'Record {i}: '+line[len('Record: '):] for i,line in enumerate(lines,1)])
+      self.assertNotIn('<answer>',b['messages'][1]['content'])
+      self.assertFalse(output_valid(json.dumps({'records':list(reversed(b['expected']['records']))}),b['expected']))
+    self.assertEqual(old,build_workload(t,spec,seed,8,WORKLOAD_V4))
  def test_tampered_bank_and_impossible_fit_fail_without_inference(self):
   t=WordTokenizer()
   with self.assertRaisesRegex(ValueError,'bank hash'):Fitter(t,b'modified text')

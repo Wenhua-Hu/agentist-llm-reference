@@ -41,7 +41,7 @@
     "Closed-loop structured extraction with shared padding, not general LLM throughput. Common padding prefixes may benefit RadixAttention; dedicated shared/unique prefix on/off tests remain separate evidence.",
     "Neutral decoding is fixed: temperature=0 in requests, SGLang --sampling-defaults=openai, repetition_penalty=1, top_p=1, top_k=-1. Runtime declarations are checked for both profiles; model-inherited sampling defaults cannot be mixed into calibration.",
     "Controller measurement v2 retains explicit request_timeout/upstream_timeout SSE errors as failed timeout rows. Missing or generic error codes remain protocol failures; historical raw rows are never reclassified.",
-    "Current default acceptance is the uncalibrated 7B v4 candidate; performance targets require fresh calibration and independent confirmation.",
+    "Historical opt-in v4 candidate; the current default is the uncalibrated 7B v5 candidate. No failed v4 measurements are reused for v5 calibration.",
     "Changes only repeated z padding to a frozen natural-language bank; original v1 extraction instructions, RNG records, strict typed answers, input lengths and output caps remain unchanged.",
     "Causal diagnostic e32ced55: native SGLang 8/8, HF eager 6/8. HF long literal-copy controls still have numeric errors. Qualification64 was NOT run under that original both-paths-pass protocol.",
     "Subsequent decision: HF remains a diagnostic control; validate the actual delivered SGLang service on all64 independent frozen extraction cases before the full new calibration matrix. No raw failures are removed or reclassified.",

@@ -96,18 +96,18 @@ bash setup.sh # 显式恢复服务
 
 ## 对最终服务运行公开自测
 
-这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。默认 `benchmarks/acceptance.json` 与 `benchmarks/acceptance-v4.pending.json` 均为 7B v4 候选合同（prose padding + JSON 模式，未完成标定）。可直接使用默认配置，也可像下例显式选择 v4 pending 文件；模型身份不符时会拒绝运行。门槛为空时绝不算通过；候选门槛只有经过另一台全新 GPU、相同源码 commit、不同随机 seed 的独立确认后，才能用于正式计分。验收必须完整包含 short/long × 并发 8/16 四项目标，缺项不得按剩余项目折算满分。
+这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。默认 `benchmarks/acceptance.json` 与 `benchmarks/acceptance-v5.pending.json` 均为 7B v5 候选合同（prose padding + JSON 模式，长输入增加记录编号并明确保持原顺序，未完成标定）。可直接使用默认配置，也可像下例显式选择 v5 pending 文件；模型身份不符时会拒绝运行。门槛为空时绝不算通过；候选门槛只有经过另一台全新 GPU、相同源码 commit、不同随机 seed 的独立确认后，才能用于正式计分。验收必须完整包含 short/long × 并发 8/16 四项目标，缺项不得按剩余项目折算满分。
 
 ```bash
 # 默认 setup 的项目 venv 已包含所需依赖；API_KEY 与服务启动时相同。
 BENCH_PROFILE=baseline bash setup.sh
 .venv/bin/python -m benchmarks.serving_benchmark \
-  --config benchmarks/acceptance-v4.pending.json \
+  --config benchmarks/acceptance-v5.pending.json \
   --base-url http://127.0.0.1:8000 --profile baseline \
   --seed 20261017 --out results/self-test/run-1
 BENCH_PROFILE=optimized bash setup.sh
 .venv/bin/python -m benchmarks.serving_benchmark \
-  --config benchmarks/acceptance-v4.pending.json \
+  --config benchmarks/acceptance-v5.pending.json \
   --base-url http://127.0.0.1:8000 --profile optimized \
   --seed 20261017 --out results/self-test/run-1
 ```
