@@ -12,6 +12,8 @@ import re
 import weakref
 
 WORKLOAD_V3 = 'typed-json-prose-padding-exact-input/3'
+WORKLOAD_V4 = 'typed-json-prose-json-mode-exact-input/4'
+JSON_RESPONSE_FORMAT = {'type': 'json_object'}
 BANK_SHA256 = '84e28c0006bf3fb30049caaa505cf2bd2f3e2ea5d9f1f34a190ba2aa4936dcbf'
 TAILS = ('Rain falls.', 'Leaves move.', 'The room is quiet.', 'A soft breeze passes.',
          'Clouds cross the open sky.', 'The garden remains calm.',

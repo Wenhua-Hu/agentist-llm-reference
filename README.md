@@ -96,7 +96,7 @@ bash setup.sh # 显式恢复服务
 
 ## 对最终服务运行公开自测
 
-这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。当前 7B 候选自测必须显式选择 `--config benchmarks/acceptance-v4.pending.json`（prose padding + JSON 模式，未完成标定）；默认 `benchmarks/acceptance.json` 仍是旧 1.5B 合同，身份不符时会拒绝运行。门槛为空时绝不算通过；候选门槛只有经过另一台全新 GPU、相同源码 commit、不同随机 seed 的独立确认后，才能用于正式计分。验收必须完整包含 short/long × 并发 8/16 四项目标，缺项不得按剩余项目折算满分。
+这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。默认 `benchmarks/acceptance.json` 与 `benchmarks/acceptance-v4.pending.json` 均为 7B v4 候选合同（prose padding + JSON 模式，未完成标定）。可直接使用默认配置，也可像下例显式选择 v4 pending 文件；模型身份不符时会拒绝运行。门槛为空时绝不算通过；候选门槛只有经过另一台全新 GPU、相同源码 commit、不同随机 seed 的独立确认后，才能用于正式计分。验收必须完整包含 short/long × 并发 8/16 四项目标，缺项不得按剩余项目折算满分。
 
 ```bash
 # 默认 setup 的项目 venv 已包含所需依赖；API_KEY 与服务启动时相同。
@@ -135,10 +135,6 @@ python3 -m venv .venv-test
 
 ## KV 数值诊断
 
-历史 A10 和首轮 Daytona 实测均发现 BF16 cache on/off 的全词表 logits 差异超过预设 atol=0.15/rtol=0.02；负结果原样保留，不修改答案或放宽容差。当前 KV 数学等价实验默认使用 FP32，并关闭 TF32，使用更严格的 atol=0.001/rtol=0.0001；最终 SGLang 服务仍固定 BF16。FP32 原理实验不代替 BF16 服务正确性与性能验收。也可以显式重跑 BF16 诊断：
-
-```bash
-KV_DTYPE=bfloat16 bash experiments/run.sh --case kv --out results/kv-bf16/diagnostic-1
-```
+历史 A10 和首轮 Daytona 实测均发现 BF16 cache on/off 的全词表 logits 差异超过预设 atol=0.15/rtol=0.02；负结果原样保留，不修改答案或放宽容差。当前 KV 数学等价实验默认使用 FP32，并关闭 TF32，使用更严格的 atol=0.001/rtol=0.0001；最终 SGLang 服务仍固定 BF16。FP32 原理实验不代替 BF16 服务正确性与性能验收。当前入口只接受固定 1.5B FP32；旧版本支持的 `KV_DTYPE=bfloat16` 诊断不适用于此提交，历史 BF16 证据应按对应旧源码 commit 阅读与复现。
 
 FP32 对照使用预先固定的 atol=0.001/rtol=0.0001，两分支同为 FP32；A10 实测通过，最大误差约 0.00005。其结果不能替代 BF16 验证。两种精度均报告 top-1 agreement 与全词表误差。正式服务仍固定 BF16。

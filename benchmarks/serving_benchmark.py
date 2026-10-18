@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 import httpx
 from .measurement import events, percentile
-from .prose_workload import WORKLOAD_V3, BANK_SHA256, build_workload_v3
+from .prose_workload import WORKLOAD_V3, WORKLOAD_V4, JSON_RESPONSE_FORMAT, BANK_SHA256, build_workload_v3
 
 
 def load_tokenizer(config, local_files_only=False):
@@ -34,7 +34,7 @@ def chat_tokens(tokenizer, messages):
 
 WORKLOAD_V1 = "typed-json-exact-input/1"
 WORKLOAD_V2 = "json-literal-copy-exact-input/2"
-SUPPORTED_WORKLOADS = {WORKLOAD_V1, WORKLOAD_V2, WORKLOAD_V3}
+SUPPORTED_WORKLOADS = {WORKLOAD_V1, WORKLOAD_V2, WORKLOAD_V3, WORKLOAD_V4}
 
 NEUTRAL_DECODING = {"temperature": 0, "repetition_penalty": 1.0, "top_p": 1.0,
                     "top_k": -1, "sampling_defaults": "openai"}
@@ -62,8 +62,11 @@ def build_workload(tokenizer, spec, seed, count, workload_version=WORKLOAD_V1):
     """Exact *chat-template* input length, with controller-generated JSON answers."""
     if workload_version not in SUPPORTED_WORKLOADS:
         raise ValueError('unsupported workload version')
-    if workload_version == WORKLOAD_V3:
-        return build_workload_v3(tokenizer, spec, seed, count, v1_builder=build_workload)
+    if workload_version in (WORKLOAD_V3, WORKLOAD_V4):
+        items = build_workload_v3(tokenizer, spec, seed, count, v1_builder=build_workload)
+        if workload_version == WORKLOAD_V4:
+            for item in items:item['response_format'] = dict(JSON_RESPONSE_FORMAT)
+        return items
     rng = random.Random(seed)
     items = []
     for index in range(count):
@@ -131,6 +134,7 @@ async def request_once(client, base, key, model, item, tokenizer, timeout, ident
            'output_tokens': 0, 'declared_output_tokens': None, 'ttft_ms': None,
            'tpot_ms': None, 'event_gap_p95_ms': None, 'content_events': 0,
            'token_count_source': 'client_retokenized_visible_text'}
+    if 'response_format' in item:row['response_format'] = dict(item['response_format'])
     text, event_times = '', []
 
     async def consume():
@@ -138,6 +142,7 @@ async def request_once(client, base, key, model, item, tokenizer, timeout, ident
         body = {'model': model, 'messages': item['messages'], 'temperature': 0,
                 'max_tokens': item['max_tokens'], 'stream': True,
                 'stream_options': {'include_usage': True}}
+        if 'response_format' in item:body['response_format'] = dict(item['response_format'])
         if sampling_overrides:body.update(sampling_overrides)
         done = finished = False
         async with client.stream('POST', base.rstrip('/') + '/v1/chat/completions', json=body,
@@ -248,14 +253,18 @@ REQUIRED_TARGETS = {(w, c) for w in ('short', 'long') for c in (8, 16)}
 
 
 def measurement_fields(config):
-    return MEASUREMENT_FIELDS + (('prose_bank_sha256',) if config.get('workload_version') == WORKLOAD_V3 else ())
+    version = config.get('workload_version')
+    return MEASUREMENT_FIELDS + (('prose_bank_sha256',) if version in (WORKLOAD_V3, WORKLOAD_V4) else ()) + \
+        (('response_format',) if version == WORKLOAD_V4 else ())
 
 
 def validate_workload_contract(config):
     if config.get('workload_version') not in SUPPORTED_WORKLOADS:
         raise ValueError('unsupported workload version')
-    if config.get('workload_version') == WORKLOAD_V3 and config.get('prose_bank_sha256') != BANK_SHA256:
+    if config.get('workload_version') in (WORKLOAD_V3, WORKLOAD_V4) and config.get('prose_bank_sha256') != BANK_SHA256:
         raise ValueError('missing or mismatched frozen prose bank')
+    if config.get('workload_version') == WORKLOAD_V4 and config.get('response_format') != JSON_RESPONSE_FORMAT:
+        raise ValueError('missing or mismatched JSON response_format')
 
 
 def core_contract_digest(config):
@@ -336,7 +345,8 @@ def score_performance(config, summaries, manifest, maximum=30, *, allow_provisio
             row.get('repeats') == config['repeats'] and row.get('usage_verified') is True and \
             row.get('timing_complete') is True and row.get('workload_version') == config['workload_version'] and \
             row.get('measurement_version') == config['measurement_version'] and \
-            neutral_policy(row.get('decoding_policy'))
+            neutral_policy(row.get('decoding_policy')) and \
+            (config['workload_version'] != WORKLOAD_V4 or row.get('response_format') == JSON_RESPONSE_FORMAT)
         values = []
         for metric, threshold, operation in [
             ('output_tokens_per_second', 'output_tokens_per_second_min', 'min'),
@@ -434,6 +444,7 @@ async def measure(base, key, profile, config, tokenizer, seed, out, emit=print):
                     'measurement_version': config['measurement_version'],
                     'decoding_policy': runtime_decoding_policy(info),
                     'input_tokens': spec['input_tokens'], 'max_output_tokens_requested': spec['max_output_tokens']})
+                if config['workload_version'] == WORKLOAD_V4:summary['response_format'] = dict(JSON_RESPONSE_FORMAT)
                 summaries.append(summary)
                 all_rows.extend(case_rows)
                 emit(json.dumps(summary))

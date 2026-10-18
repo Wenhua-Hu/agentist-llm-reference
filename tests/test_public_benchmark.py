@@ -19,7 +19,7 @@ def manifest():
     c=config();return {**{k:c[k] for k in ('model_id','model_revision','dtype','decoding_policy')},'gpu_name':'NVIDIA GeForce RTX 4090'}
 def summary():
     return {'profile':'optimized','workload':'short','concurrency':8,'requests':48,'repeats':3,
-      'decoding_policy':config()['decoding_policy'],'measurement_version':config()['measurement_version'],'usage_verified':True,'timing_complete':True,'workload_version':config()['workload_version'],
+      'response_format':config()['response_format'],'decoding_policy':config()['decoding_policy'],'measurement_version':config()['measurement_version'],'usage_verified':True,'timing_complete':True,'workload_version':config()['workload_version'],
       'output_tokens_per_second':100,'ttft_p95_ms':200,'tpot_p95_ms':20,'e2e_p95_ms':1500,
       'quality_goodput':1,'slo_attainment':.95,'success_rate':.99,'quality_rate':.95}
 def summaries(row=None):
@@ -38,6 +38,15 @@ class AcceptanceTests(unittest.TestCase):
             self.assertEqual(score_performance(config(),summaries(row),manifest())['points'],0)
         c=config();c.pop('decoding_policy')
         self.assertEqual(score_performance(c,summaries(),manifest())['points'],0)
+    def test_v4_scoring_requires_recorded_json_policy(self):
+        from benchmarks.serving_benchmark import WORKLOAD_V4, BANK_SHA256, JSON_RESPONSE_FORMAT
+        c=config();c.update(workload_version=WORKLOAD_V4,prose_bank_sha256=BANK_SHA256,response_format=dict(JSON_RESPONSE_FORMAT))
+        c['calibration']['independent_confirmation']['core_contract_sha256']=core_contract_digest(c)
+        rows=summaries()
+        for row in rows:row.update(workload_version=WORKLOAD_V4,response_format=dict(JSON_RESPONSE_FORMAT))
+        self.assertEqual(score_performance(c,rows,manifest())['points'],30)
+        for row in rows:row.pop('response_format')
+        self.assertEqual(score_performance(c,rows,manifest())['points'],0)
     def test_measure_refuses_inherited_model_defaults_before_inference(self):
         import tempfile
         from unittest.mock import patch
@@ -140,6 +149,24 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(bodies[1]['repetition_penalty'],1.0)
         self.assertEqual(bodies[0]['messages'],bodies[1]['messages'])
         self.assertEqual(bodies[0]['max_tokens'],bodies[1]['max_tokens'])
+    def test_json_mode_forwarded_and_recorded_without_output_repair(self):
+        bodies=[];text='```json\n{"id":2}\n```'
+        def handler(request):
+            bodies.append(json.loads(request.content))
+            chunks=[{'choices':[{'delta':{'content':text},'finish_reason':'stop'}]}]
+            return httpx.Response(200,headers={'content-type':'text/event-stream'},text=''.join('data: '+json.dumps(c)+'\n\n' for c in chunks)+'data: [DONE]\n\n')
+        async def run():
+            async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+                item={'id':'x','input_tokens':512,'messages':[],'max_tokens':96,'expected':{'id':2}}
+                old=await request_once(client,'http://localhost','key','model',item,Tokenizer(),1,'old')
+                new=await request_once(client,'http://localhost','key','model',{**item,'response_format':{'type':'json_object'}},Tokenizer(),1,'new')
+                return old,new
+        old,new=asyncio.run(run())
+        self.assertNotIn('response_format',bodies[0]);self.assertNotIn('response_format',old)
+        self.assertEqual(bodies[1],{**bodies[0],'response_format':{'type':'json_object'}})
+        self.assertEqual(new['response_format'],{'type':'json_object'})
+        self.assertEqual(new['text'],text);self.assertFalse(new['quality_pass'])
+        self.assertEqual(new['output_tokens'],len(text))
     def test_incomplete_stream(self):
         async def run():
             transport=httpx.MockTransport(lambda req:httpx.Response(200,headers={'content-type':'text/event-stream'},text='data: '+json.dumps({'choices':[{'delta':{'content':'{"id":2}'},'finish_reason':'stop'}]})+'\n\n'))
