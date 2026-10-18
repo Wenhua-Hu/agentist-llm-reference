@@ -206,5 +206,6 @@ def test_public_cli_marks_artifacts_unofficial(monkeypatch, tmp_path):
     artifact = json.loads((tmp_path/'baseline-benchmark-manifest.json').read_text())
     assert artifact['official_score'] is False and artifact['official_grade'] is False
     assert artifact['measurement_location'] == 'public_self_test'
-    assert artifact['acceptance']['status'] == 'uncalibrated'
+    assert artifact['acceptance']['status'] == 'calibrated'
+    assert artifact['acceptance']['calibration']['independent_confirmation']['passed'] is True
     assert 'test-only-key' not in json.dumps(artifact)

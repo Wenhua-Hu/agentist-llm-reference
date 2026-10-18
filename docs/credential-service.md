@@ -1,6 +1,6 @@
 # 凭据、用量与实验账本（credential-service/1）
 
-这是项目内真实运行的管理服务，不是平台自身用户数据库，也不是支付系统。管理与推理使用同一个网关，SQLite WAL 保存 tenant、key 摘要、不可变价格、请求账单、调整和审计。项目新增管理能力在测试环境验证中；历史 A10/Daytona 性能结果不包含这版网关的计费开销。
+这是项目内真实运行的管理服务，不是平台自身用户数据库，也不是支付系统。管理与推理使用同一个网关，SQLite WAL 保存 tenant、key 摘要、不可变价格、请求账单、调整和审计。项目新增管理能力在测试环境验证中；历史 A10 与旧 Daytona 性能结果不包含这版网关的计费开销。当前 7B/V5 测量保留鉴权、配额和账本功能，状态见 [Daytona 实测记录](daytona-v5.md)。
 
 ## 启动与权限
 
@@ -51,13 +51,15 @@ Agent 与性能测试中的结构化任务可以显式请求这一模式，由 S
 
 正式服务用固定 model revision 的 tokenizer 和 `apply_chat_template(add_generation_prompt=True)` 计算真实输入 token。计数包含 system/user/assistant 文本与 chat template，不能相信客户端提交的 usage、cost、user_id（公开模型禁止这些字段）。前缀命中仍按输入计费，cached_tokens 另记；精确服务计数与引擎 usage 不一致时返回错误并走未知用量对账，不捏造费用。
 
-一次 SQLite `BEGIN IMMEDIATE` 事务检查 tenant/key 状态、幂等、余额、累计 token、RPM 和并发，按 `输入tokens×输入价格 + max_tokens×输出价格` 预占。配额跨用户所有 key 共享。余额/累计 token 不足 402 insufficient_quota；RPM/并发 429 并带 Retry-After；错误/撤销/到期 key 401，停用 tenant 403。租户并发与全网关 FIFO gate 是两层独立限制。
+一次 SQLite `BEGIN IMMEDIATE` 事务检查 tenant/key 状态、幂等、余额、累计 token、RPM 和并发，按 `输入tokens×输入价格 + max_tokens×输出价格` 预占。配额由同一用户的所有 key 共享，用户之间独立。余额/累计 token 不足 402 insufficient_quota；RPM/并发 429 并带 Retry-After；错误/撤销/到期 key 401，停用 tenant 403。租户并发与全网关 FIFO gate 是两层独立限制。
 
 价格版本在 admission 时固定。引擎完整可信 usage 先写 journal，然后结算一次：扣实际费用、累加实际 token、释放未用预占。输入 100/输出 50，在 2/6 microUSD 价格下费用为 500。SSE 网关始终要求引擎 include_usage，客户端是否请求 usage 不影响账本；最终 usage 必须在发给客户端前落盘，收到 DONE 后正常结算。
 
 Idempotency-Key 以 tenant+route 为范围，正文规范化哈希匹配；进行中返回 409 request_in_progress，结束后返回 409 request_already_completed 和原 request_id，不重新调用引擎；同 key 不同正文 409 idempotency_conflict。未带键的请求是独立调用。充值有独立幂等表。
 
-Agent 父请求占用一次 tenant RPM/并发并负责客户端幂等，父编排记录自身 0 token/费用；两次真实模型调用分别以 `parent_request_id` 关联子账单，调用前各自计数/预占，调用后分别结算。第一步完成而第二步失败时，已实际使用的第一步仍保留准确账单，不重复聚合扣费。轮换/撤销之后旧 key 不再准入新请求；已经准入的 Agent 父请求可继续完成，子账仍归属原 key。
+本参考实现执行两次模型调用；合同允许更多调用，只要真实账目与调用次数一致。Agent 父请求占用一次 tenant RPM/并发并负责客户端幂等，父编排记录自身 0 token/费用；两次真实模型调用分别以 `parent_request_id` 关联子账单，调用前各自计数/预占，调用后分别结算。第一步完成而第二步失败时，已实际使用的第一步仍保留准确账单，不重复聚合扣费。轮换/撤销之后旧 key 不再准入新请求；已经准入的 Agent 父请求可继续完成，子账仍归属原 key。
+
+平台 Agent 账单验收使用响应 `X-Request-ID` 定位 `route=/agent/run`、`parent_request_id=null` 的零费用父账；每次模型调用保存 `route=/agent/model_call` 的子账并关联父 request_id。`usage.model_calls` 必须为整数且至少 2，等于独立子账条数；`usage.completion_tokens` 等于子账输出 token 总数。每条子账有自己的不可变价格版本，全部归属调用者的 tenant/key/model。父账不重复扣费，同一 Idempotency-Key 重试返回 409，不能重复记账或改变另一用户账本。
 
 ## 断流与崩溃恢复
 

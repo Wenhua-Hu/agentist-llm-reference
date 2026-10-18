@@ -17,6 +17,16 @@ class ProseTests(unittest.TestCase):
    bad={**pending,'prose_bank_sha256':wrong}
    with self.assertRaisesRegex(ValueError,'prose bank'):validate_workload_contract(bad)
    self.assertNotEqual(core_contract_digest(bad),digest)
+ def test_published_acceptance_preserves_audited_bytes_and_frozen_runtime(self):
+  root=Path(__file__).resolve().parents[1]/'benchmarks';raw=(root/'acceptance.json').read_bytes()
+  self.assertEqual(hashlib.sha256(raw).hexdigest(),'d5cd2fdc90056e710cf741ac1eec4c5b042ea3818d505e4a3975697f1df9241f')
+  config=json.loads(raw);cal=config['calibration'];confirmation=cal['independent_confirmation']
+  self.assertEqual(config['status'],'calibrated')
+  self.assertEqual(cal['commit_sha'],'9961c0503c2eb3fa702794ef9281dd88f96d9456')
+  self.assertEqual(confirmation['commit_sha'],cal['commit_sha'])
+  self.assertNotEqual(confirmation['run_id'],cal['run_id']);self.assertNotEqual(confirmation['instance_id'],cal['instance_id'])
+  self.assertNotEqual(confirmation['seed_decimal'],cal['seed_decimal'])
+  self.assertEqual({(t['workload'],t['concurrency']) for t in config['targets']},{('short',8),('short',16),('long',8),('long',16)})
  def test_all_rng_cases_answers_and_limits_preserved(self):
   t=WordTokenizer();state=random.getstate();zero_ids=0
   for spec in json.loads((Path(__file__).resolve().parents[1]/'benchmarks').joinpath('acceptance.json').read_text())['workloads']:
@@ -58,7 +68,10 @@ class ProseTests(unittest.TestCase):
   t=WordTokenizer();root=Path(__file__).resolve().parents[1]/'benchmarks'
   config=json.loads((root/'acceptance-v5.pending.json').read_text())
   self.assertEqual(config['workload_version'],WORKLOAD_V5);validate_workload_contract(config)
-  self.assertEqual(config,json.loads((root/'acceptance.json').read_text()))
+  confirmed=json.loads((root/'acceptance.json').read_text())
+  self.assertIsNone(config['targets']);self.assertEqual(config['status'],'uncalibrated')
+  for field in ('model_id','model_revision','dtype','workload_version','workloads','response_format','prose_bank_sha256'):
+   self.assertEqual(config[field],confirmed[field])
   config['targets']=[];digest=core_contract_digest(config)
   for field,value in [('response_format',None),('prose_bank_sha256','0'*64)]:
    bad={**config,field:value}

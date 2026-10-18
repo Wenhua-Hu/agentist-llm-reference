@@ -1,6 +1,6 @@
 # Agentist Project 2 — LLM service reference implementation
 
-这是一份服务工程参考实现：SGLang 部署、持久化多租户凭据与实验账本、流式推理、FIFO 有界排队、取消/超时、工具 Agent、KV/前缀/Attention 实验与 CPU 测试。推理合同 llm-lab/1.0；新增管理合同 credential-service/1 正在测试环境验证，包含真实 `/console` 与管理员 API。自动验收占 95 分、人工验收占 5 分，具体分项以平台当前项目任务书为准。历史报告不覆盖新增管理功能，也不代表当前性能指标已标定通过。
+这是一份服务工程参考实现：SGLang 部署、持久化多租户凭据与实验账本、流式推理、FIFO 有界排队、取消/超时、工具 Agent、KV/前缀/Attention 实验与 CPU 测试。推理合同 llm-lab/1.0；管理合同 credential-service/1 已在独立 Daytona GPU 验证，包含真实 `/console` 与管理员 API。自动验收占 95 分、人工验收占 5 分，具体分项以平台当前项目任务书为准。历史报告不覆盖新增管理功能；当前 7B/V5 已完成标定与独立确认，自动 95/95，人工 5 分待验收。
 
 ## 当前参考版本与评分
 
@@ -8,7 +8,9 @@
 
 评分版本 `llm-lab/5.0` 共十项：重建 5、API 5、正确性 5、性能 30、Agent 5、KV 10、prefix 10、attention 10、多用户凭据/计费/配额 15，以及人工解释 5。管理服务的密钥生命周期、用量计费、配额恢复三组各 5 分，须同时满足 CPU 独立测试与真实 optimized SGLang 部署门槛；公开自测不能上传为成绩。完整 [评分细则与 15 项管理协议](docs/autograding.md) 说明每项通过、失败与未执行规则。
 
-升级正在 staging 验证。性能门槛未标定或未独立确认时，30 分是“待评定”，不是学员失败 0 分；保留其他真实结果，暂不生成正式最终总分。控制器中断也不生成最终成绩。以下历史证据不证明当前代码或当前 Daytona 性能验收已通过。
+当前 GPU 实测固定源码为 `9961c0503c2eb3fa702794ef9281dd88f96d9456`。首轮标定及新环境独立确认已完成，见 [Daytona V5 实测记录](docs/daytona-v5.md)。后续仅文档/验收配置更新的提交与该实测源码 SHA 分开标识，不能声称后续新提交已被原样 GPU 跑过。
+
+升级正在 staging 验证。性能门槛未标定或未独立确认时，30 分是“待评定”，不是学员失败 0 分；保留其他真实结果，暂不生成正式最终总分。控制器中断也不生成最终成绩。本轮已确认结果见 Daytona V5 实测记录；下列 A10 历史证据单独保留。
 
 ## 历史 A10 彩排（不作为当前验收）
 
@@ -78,7 +80,7 @@ curl -N http://127.0.0.1:8000/v1/chat/completions \
 
 ## 显式运行实验
 
-候选服务固定 `Qwen/Qwen2.5-7B-Instruct` revision `a09a35458c702b33eeacc393d103063234e8bc28`、BF16；baseline/optimized 的静态显存比例均为 0.8，尚需新 GPU 验证，旧性能报告不证明本候选通过。KV 原理实验独立固定 `Qwen/Qwen2.5-1.5B-Instruct` revision `989aa7980e4cf806f80c7fef2b1adb7bc71aa306`、FP32（禁用 TF32），保留 0.001 最大绝对误差与 100% top-1 门槛；7B 的 FP32 权重超过 24 GiB，不能在该 GPU 上直接替换原理模型。prefix 使用服务 7B；attention 使用合成 Q/K/V，7B 仅标记服务上下文，不加载模型权重。入口默认按 case 选择模型，显式错误模型/revision或 KV dtype 会被拒绝，不能静默改写 manifest。
+当前服务固定 `Qwen/Qwen2.5-7B-Instruct` revision `a09a35458c702b33eeacc393d103063234e8bc28`、BF16；baseline/optimized 的静态显存比例均为 0.8，已在本轮两台独立 GPU 验证；这项配置不保证其他模型或负载同样通过。KV 原理实验独立固定 `Qwen/Qwen2.5-1.5B-Instruct` revision `989aa7980e4cf806f80c7fef2b1adb7bc71aa306`、FP32（禁用 TF32），保留 0.001 最大绝对误差与 100% top-1 门槛；7B 的 FP32 权重超过 24 GiB，不能在该 GPU 上直接替换原理模型。prefix 使用服务 7B；attention 使用合成 Q/K/V，7B 仅标记服务上下文，不加载模型权重。入口默认按 case 选择模型，显式错误模型/revision或 KV dtype 会被拒绝，不能静默改写 manifest。
 
 先运行一次 setup 安装固定环境。以下每个命令会停服务，独占 GPU；不会偷偷与服务同时加载两个模型。每个输出目录只能写一次，重跑需换目录。
 
@@ -96,18 +98,18 @@ bash setup.sh # 显式恢复服务
 
 ## 对最终服务运行公开自测
 
-这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。默认 `benchmarks/acceptance.json` 与 `benchmarks/acceptance-v5.pending.json` 均为 7B v5 候选合同（prose padding + JSON 模式，长输入增加记录编号并明确保持原顺序，未完成标定）。可直接使用默认配置，也可像下例显式选择 v5 pending 文件；模型身份不符时会拒绝运行。门槛为空时绝不算通过；候选门槛只有经过另一台全新 GPU、相同源码 commit、不同随机 seed 的独立确认后，才能用于正式计分。验收必须完整包含 short/long × 并发 8/16 四项目标，缺项不得按剩余项目折算满分。
+这组工具与平台使用相同的固定输入长度、正确性检查和指标定义，结果用于调试，不会写入正式成绩，也不会申请 GPU。必须先启动自己的服务。默认 `benchmarks/acceptance.json` 是已经独立确认的 7B v5 验收合同（prose padding + JSON 模式，长输入带记录编号并保持原顺序）。下例使用这个已确认文件；`benchmarks/acceptance-v5.pending.json` 保留无阈值历史候选，只供对照。模型身份不符时会拒绝运行。门槛为空时绝不算通过；候选门槛只有经过另一台全新 GPU、相同源码 commit、不同随机 seed 的独立确认后，才能用于正式计分。验收必须完整包含 short/long × 并发 8/16 四项目标，缺项不得按剩余项目折算满分。
 
 ```bash
 # 默认 setup 的项目 venv 已包含所需依赖；API_KEY 与服务启动时相同。
 BENCH_PROFILE=baseline bash setup.sh
 .venv/bin/python -m benchmarks.serving_benchmark \
-  --config benchmarks/acceptance-v5.pending.json \
+  --config benchmarks/acceptance.json \
   --base-url http://127.0.0.1:8000 --profile baseline \
   --seed 20261017 --out results/self-test/run-1
 BENCH_PROFILE=optimized bash setup.sh
 .venv/bin/python -m benchmarks.serving_benchmark \
-  --config benchmarks/acceptance-v5.pending.json \
+  --config benchmarks/acceptance.json \
   --base-url http://127.0.0.1:8000 --profile optimized \
   --seed 20261017 --out results/self-test/run-1
 ```

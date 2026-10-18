@@ -3,7 +3,7 @@
 
 ## 当前评分总表与验证状态
 
-当前公开参考分支为 [codex/credential-service-v5](https://github.com/mrvgao/agentist-llm-reference/tree/codex/credential-service-v5)，默认分支仍保留旧实现。部署时按平台任务书给出的完整 commit 固定源码；本文件不更新该冻结提交。升级当前在 staging 验证，不声明参考实现已通过全部验收。
+当前公开参考分支为 [codex/credential-service-v5](https://github.com/mrvgao/agentist-llm-reference/tree/codex/credential-service-v5)，默认分支仍保留旧实现。部署时按平台任务书给出的完整 commit 固定源码；本文件不更新该冻结提交。本轮已完成独立确认，自动 95/95、人工 5 分待验收；实测源码与后续文档提交分开标记，见 [Daytona V5 实测记录](daytona-v5.md)。
 
 | 项目 | 分值 | 自动验收内容 |
 | --- | ---: | --- |
@@ -105,11 +105,21 @@ bash experiments/run.sh --case attention --out results/platform-<随机运行标
 
 最终服务由控制端 `serving_benchmark.py` 和 `serving_probes.py` 独立测试。版本化 `acceptance.json` 固定硬件、模型/revision、BF16、工作负载和并发；当前标定未完成时 targets=null、status=uncalibrated，性能 30 分待评定，不生成正式最终总分，也不能生成通过结论。候选门槛尚未独立确认（unconfirmed）时采用相同语义。标定完成后才能发布数字门槛；不复用历史 Lambda A10 数据。
 
-性能 30 分按配置中的目标组等分。每组必须同时通过输出 token/s、TTFT p95、TPOT p95、E2E p95、goodput、SLO 达标比例、成功率与正确率；还需匹配硬件/模型/精度、足够采样、完整时序和控制端 tokenizer 计数。失败组不能用更快的其他指标抵消。输出 token/s 只统计正确成功输出；SSE 块间隔不宣称精确 token ITL。
+性能 30 分固定为 short/long × 并发 8/16 四组，每组 7.5 分，不允许删掉较难的一组再重分权重。每组必须同时通过输出 token/s、TTFT p95、TPOT p95、E2E p95、goodput、SLO 达标比例、成功率与正确率；还需匹配硬件/模型/精度、足够采样、完整时序和控制端 tokenizer 计数。失败组不能用更快的其他指标抵消。输出 token/s 只统计正确成功输出；SSE 块间隔不宣称精确 token ITL。
 
 API 5 分为鉴权 1、模型信息 0.5、非流式 0.5、SSE 1、过载拒绝 1、取消与恢复 1。工程探针在性能窗口之外执行。服务声明的 active/queued/abort_acknowledged 仅辅助核对；平台实际发起突发请求、关闭流、观察队列排空并检查恢复请求。人工分析仍只有 5 分，不用人工替代未通过的自动测试。
 
 历史 llm-lab/4.0 的重建/API/正确性各 10 分且未覆盖管理服务、llm-lab/3.0 的每项 15 分原理实验、llm-lab/2.0 的 50/50 与 llm-lab/1.0 的 80/20 保留在原报告中，不按本版本追溯改分。
+
+### V5 负载与流式测量边界
+
+固定服务为 Qwen2.5-7B-Instruct BF16、revision `a09a35458c702b33eeacc393d103063234e8bc28`、RTX 4090。负载 `typed-json-numbered-records-prose-exact-input/5` 使用同一自然语言前缀库与 JSON 模式：short 是 512 个 chat-template 输入 tokens、1 条记录、最多输出 96 tokens；long 是 1024 输入、8 条带编号记录、最多输出 384。编号只表达输入顺序，不能加入答案；严格校验 JSON 类型、字段、值及数组顺序，不移除围栏、不修复数字、不忽略排序错误。JSON 模式不能保证语义正确。
+
+每个 profile 的每种长度在并发 1/4/8/16 各测 3 轮，每轮 16 个请求，预热另记。两 profile 使用相同测量输入，closed-loop worker 完成一个请求再发下一个；共享前缀允许缓存命中，因此结果不代表通用聊天吞吐。校准/独立确认要求 optimized 全 8 组以及 baseline 并发 1 的两组全部正确成功；baseline 高并发只允许可识别且经策略审核的容量失败，不能将答案错误、503 或通用协议失败视为正常超时。正式四组目标成功率与正确率各 ≥99%；每组 48 个样本意味着必须 48/48。
+
+流式性能请求要求 HTTP 200、text/event-stream、非空文本、finish_reason 与 [DONE]，error 或缺结束标记视为失败。明确 request_timeout/upstream_timeout 仍是失败，计入所有请求分母；部分输出不计有效吞吐，旧的未知协议错误不能改分类。TTFT 从客户端发起请求到首个非空文本事件；E2E 到消费结束；TPOT 是首末内容事件间隔除以独立重分词可见输出 tokens 减一，只是代理值。只有一个缓冲内容事件时不伪造 TPOT=0。SSE 事件间隔不是逐 token ITL。计费 live gate 另要求完整 usage；不要混淆性能可见 token 统计与精确收费。
+
+首轮候选及独立确认状态、测量 SHA 与文档发布 SHA 的边界见 [Daytona V5 实测记录](daytona-v5.md)。
 
 ## 管理服务 15 项协议与联合部署门槛
 
@@ -143,7 +153,7 @@ fixture 的 `POST /tokenize` 返回 `count=100`（并提供 token ID 数组）�
 
 | test_id | 自动组 / 分值 | 独立测试内容 | 对应需求场景 |
 | --- | --- | --- | --- |
-| `isolation` | key_lifecycle / 1 | 两租户各自请求与账目隔离；普通 key 不能读管理接口或覆盖 tenant_id | 1、2 |
+| `isolation` | key_lifecycle / 1 | 两租户各自请求与账目隔离；普通 key 不能读/写管理接口或覆盖 tenant_id；7 个管理写路由被拒且状态不变 | 1、2 |
 | `storage` | key_lifecycle / 1 | key 列表不回传原文；扫描 DATA_DIR 未发现本次签发的原文 key | 2 |
 | `rotate` | key_lifecycle / 1 | 新 key 与 key_id 不同；旧 key 新请求 401，新 key 成功 | 3 |
 | `revoke_expiry` | key_lifecycle / 1 | 撤销与到期 key 均返回 401 | 4 |
@@ -167,17 +177,17 @@ fixture 的 `POST /tokenize` 返回 `count=100`（并提供 token ID 数组）�
 
 15 项 CPU 确定性检查不是独立的模拟项目。每个 5 分组还必须通过对应的 **optimized 真实 GPU 服务部署检查**才保留该组 CPU 得分；对应部署检查失败或未完成，该组为 0，并标注“部署未验证”。原始 CPU case 结果仍保留用于定位问题，不把其通过状态改写成已获得最终组分。
 
-真实服务检查会创建两个独立用户，分别完成流式和非流式调用，核对首个内容事件、流结束标记、实际 usage 与费用/用户账本及互不可见；测试轮换后旧 key 401、新 key 可调用；并确认原 `API_KEY` benchmark 用户的 `/v1/usage` 中已有真实模型调用账目。正式性能、正确性与 Agent 测试不能绕开鉴权、配额和账本。
+真实服务检查会创建两个独立用户，分别完成流式和非流式调用，核对首个内容事件、finish_reason、[DONE]、报告 usage 与费用/用户账本及互不可见；测试轮换后旧 key 401、新 key 可调用；并确认原 `API_KEY` benchmark 用户的 `/v1/usage` 中已有真实模型调用账目。正式性能、正确性与 Agent 测试不能绕开鉴权、配额和账本。
 
 | CPU 组 | 对应真实 optimized 网关联合门槛 |
 | --- | --- |
-| key_lifecycle | 两租户各流式/非流式、账目归属与互不可见、普通 key 无管理权限；轮换后旧 key 401、新 key 可用 |
-| metering_billing | 独立核对输入 token 数，响应 usage 与逐请求账目、汇总、余额和预占一致；原 benchmark key 也实际计费 |
+| key_lifecycle | 两租户各流式/非流式、账目归属与互不可见、普通 key 无管理权限，7 个管理写路由返回 401/403 且管理及目标用户状态未变；轮换后旧 key 401、新 key 可用 |
+| metering_billing | 独立核对输入 token 数、可见输出重分词范围，响应 usage 与账目、汇总、余额和预占一致；benchmark key 也计费；两用户真实 Agent 父子账及幂等、价格、归属一致 |
 | quota_recovery | 多 key 共享用户 RPM，超限 429 且 Retry-After；余额不足 402，不进入正常推理 |
 
-真实部署检查不重复所有 CPU 故障注入；崩溃恢复由上述确定性测试验证。真实计费检查当前独立复核输入计数和账本一致性，不能把对响应 usage 的核对宣称为输出 token 防伪证明；正式性能另用独立 tokenizer 统计输出。
+真实部署检查不重复所有 CPU 故障注入；崩溃恢复由上述确定性测试验证。真实计费检查精确复核 chat-template 输入计数；输出用独立重分词后的可见文本做保守范围核验，容纳终止 token 和分词边界差异，不宣称精确获得引擎生成 token IDs。Agent 验收要求至少 2 次模型调用，子账数与 usage.model_calls 一致，没有固定只能 2 次或每次输出最多 160 的评测限制。参考实现自身选择两次各最多 160 tokens；这不是其他实现的评分门槛。父子账和响应字段见 [管理服务合同](credential-service.md)。正式性能另用独立 tokenizer 统计可见输出，不使用服务自报数量作为吞吐分子。
 
-报告 credentials 项保存 `deployment_passed` 与 `live_checks`（每项 `id/passed/detail`），三个 `subchecks` 分别保存 `deployment_passed`。页面同时展示最终组分、真实部署依据和 15 项 CPU 原始结果。具体通过与否只能依据本次控制端实测，当前文档不声明任何参考实现已通过。
+报告 credentials 项保存 `deployment_passed` 与 `live_checks`（每项 `id/passed/detail`），三个 `subchecks` 分别保存 `deployment_passed`。页面同时展示最终组分、真实部署依据和 15 项 CPU 原始结果。具体通过与否以本次控制端实测为准；已确认参考运行的凭据项目 15/15，见 [Daytona V5 实测记录](daytona-v5.md)，不能把该结果迁移到其他提交。
 
 #### 报告中的通过、失败与未执行
 
