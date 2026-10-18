@@ -194,11 +194,17 @@ def test_upstream_timeouts_distinct_from_transport_failure(failure, expected, ro
     assert backend.aborts
 
 
-def test_timeout_after_stream_headers_remains_explicit_stream_error():
+@pytest.mark.parametrize('failure,code', [
+    (asyncio.TimeoutError, 'request_timeout'),
+    (httpx.ReadTimeout, 'upstream_timeout'),
+    (httpx.ConnectError, 'stream_failure'),
+    (BrokenStream, 'stream_failure'),
+    (ValueError, 'stream_failure')])
+def test_failure_after_stream_headers_has_precise_code(failure, code):
     class FailingStream(FakeResponse):
         async def aiter_lines(self):
             yield 'data: ' + json.dumps({'choices': [{'delta': {'content': 'partial'}}]})
-            raise httpx.ReadTimeout('stream interrupted')
+            raise failure('private failure text must not be exposed')
     class Failing(FakeBackend):
         async def stream(self, payload, rid):
             return FailingStream([])
@@ -210,6 +216,29 @@ def test_timeout_after_stream_headers_remains_explicit_stream_error():
         assert result.status_code == 200
         assert 'partial' in result.text and '"error"' in result.text
         assert '[DONE]' not in result.text
+        errors = [json.loads(line[6:])['error'] for line in result.text.splitlines() if line.startswith('data: ') and '"error"' in line]
+        assert errors == [{'code': code, 'message': 'upstream stream failed'}]
+        assert 'private failure text' not in result.text
         assert app.state.gate.active == app.state.gate.queued == 0
         assert app.state.metrics.counts['stream_error'] == 1
+    assert backend.aborts
+
+
+def test_relay_total_deadline_emits_timeout_code_and_releases_slot():
+    class SlowStream(FakeResponse):
+        async def aiter_lines(self):
+            yield 'data: ' + json.dumps({'choices': [{'delta': {'content': 'partial'}}]})
+            await asyncio.sleep(1)
+    class Slow(FakeBackend):
+        async def stream(self, payload, rid):
+            return SlowStream([])
+    backend = Slow()
+    app = create_app(backend, key='k', config={
+        'gateway_slots': 1, 'gateway_queue': 1, 'request_timeout': .03})
+    with TestClient(app) as client:
+        result = client.post('/v1/chat/completions', headers={'Authorization': 'Bearer k'},
+                             json=payload(stream=True))
+        assert result.status_code == 200
+        assert 'request_timeout' in result.text and '[DONE]' not in result.text
+        assert app.state.gate.active == app.state.gate.queued == 0
     assert backend.aborts

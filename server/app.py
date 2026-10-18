@@ -166,19 +166,28 @@ def create_app(backend=None, key=None, config=None):
             response = await disconnect_guard(request, backend.stream(payload, rid), max(.001, deadline-time.monotonic()))
             async def generate():
                 stream_status = 'cancelled'
+                stream_error_code = None
                 try:
                     async for event in relay(response, deadline):
                         yield event
                     stream_status = 'complete'
-                except (BrokenStream, ValueError, httpx.HTTPError, asyncio.TimeoutError):
+                except (BrokenStream, ValueError, httpx.HTTPError, asyncio.TimeoutError) as exc:
                     stream_status = 'stream_error'
-                    # An explicit error, NO DONE, ensures clients cannot count a truncated stream as success.
-                    yield 'data: ' + json.dumps({'error': {'message': 'upstream stream failed'}}) + '\n\n'
+                    if isinstance(exc, asyncio.TimeoutError):
+                        stream_error_code = 'request_timeout'
+                    elif isinstance(exc, httpx.TimeoutException):
+                        stream_error_code = 'upstream_timeout'
+                    else:
+                        stream_error_code = 'stream_failure'
+                    # Headers already went out: explicit typed error, NO DONE.
+                    # Only locally observed timeout exceptions receive timeout codes.
+                    yield 'data: ' + json.dumps({'error': {'code': stream_error_code,
+                                                          'message': 'upstream stream failed'}}) + '\n\n'
                 finally:
                     gate.release()
                     if stream_status != 'complete':
                         abort_later(rid)
-                    metrics.event(rid, stream_status, start, queue_ms=queue_ms)
+                    metrics.event(rid, stream_status, start, queue_ms=queue_ms, error_code=stream_error_code)
                     task = asyncio.create_task(response.aclose())
                     cleanup_tasks.add(task)
                     task.add_done_callback(cleanup_tasks.discard)
