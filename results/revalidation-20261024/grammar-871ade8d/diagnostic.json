@@ -1,0 +1,12 @@
+{
+  "official_score": false,
+  "complete": true,
+  "input_sha256": "db00b777824a433f90f4a50989abde7cb7fc5ada17e4de91a6a5b2731cebba5e",
+  "cases": 152,
+  "variants": [
+    "xgrammar",
+    "unconstrained",
+    "llguidance"
+  ],
+  "patched_worktree_for_diagnostic_only": true
+}

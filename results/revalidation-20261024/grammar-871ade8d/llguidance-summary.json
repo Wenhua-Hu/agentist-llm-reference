@@ -1,0 +1,21 @@
+{
+  "requests": 152,
+  "successful": 152,
+  "quality_pass": 150,
+  "window_seconds": 33.042347826994956,
+  "success_rate": 1.0,
+  "quality_rate": 0.9868421052631579,
+  "output_tokens_per_second": 363.8966596125662,
+  "all_success_output_tokens_per_second": 364.9559063762422,
+  "usage_verified": true,
+  "token_count_source": "controller_retokenized_visible_text",
+  "min_output_tokens": 17,
+  "max_output_tokens": 256,
+  "slo_attainment": null,
+  "quality_goodput": null,
+  "ttft_p95_ms": 714.7437990643084,
+  "tpot_p95_ms": 17.068966757506132,
+  "e2e_p95_ms": 4775.183290243149,
+  "event_gap_p95_p95_ms": 65.39207370951772,
+  "timing_complete": true
+}

@@ -1,0 +1,128 @@
+{
+  "official_score": false,
+  "source_commit": "9ebf07bbc62b21eb061c311b6b3b9c2c63bc0582",
+  "comparisons": {
+    "xgrammar": {
+      "attempted": 152,
+      "correct": 150,
+      "fresh_cases_correct": 64,
+      "fresh_cases": 64,
+      "failures": [
+        {
+          "id": "replay-r1-short-14",
+          "expected": {
+            "id": 66449,
+            "city": "Paris",
+            "units": 15
+          },
+          "actual": {
+            "id": 6649,
+            "city": "Paris",
+            "units": 15
+          }
+        },
+        {
+          "id": "unseen-short-0",
+          "expected": {
+            "id": 91187,
+            "city": "Boston",
+            "units": 51
+          },
+          "actual": {
+            "id": 91871,
+            "city": "Boston",
+            "units": 51
+          }
+        }
+      ]
+    },
+    "unconstrained": {
+      "attempted": 152,
+      "correct": 150,
+      "fresh_cases_correct": 64,
+      "fresh_cases": 64,
+      "failures": [
+        {
+          "id": "replay-r1-short-14",
+          "expected": {
+            "id": 66449,
+            "city": "Paris",
+            "units": 15
+          },
+          "actual": {
+            "id": 66499,
+            "city": "Paris",
+            "units": 15
+          }
+        },
+        {
+          "id": "unseen-short-0",
+          "expected": {
+            "id": 91187,
+            "city": "Boston",
+            "units": 51
+          },
+          "actual": {
+            "id": 91871,
+            "city": "Boston",
+            "units": 51
+          }
+        }
+      ]
+    },
+    "llguidance": {
+      "attempted": 152,
+      "correct": 150,
+      "fresh_cases_correct": 64,
+      "fresh_cases": 64,
+      "failures": [
+        {
+          "id": "replay-r1-short-14",
+          "expected": {
+            "id": 66449,
+            "city": "Paris",
+            "units": 15
+          },
+          "actual": {
+            "id": 6649,
+            "city": "Paris",
+            "units": 15
+          }
+        },
+        {
+          "id": "unseen-short-0",
+          "expected": {
+            "id": 91187,
+            "city": "Boston",
+            "units": 51
+          },
+          "actual": {
+            "id": 91871,
+            "city": "Boston",
+            "units": 51
+          }
+        }
+      ]
+    }
+  },
+  "files_sha256": {
+    "cleanup.json": "3e608289c8779c5e9ad01629638f248cf54dad84db02cfee91d399b28e8e77fc",
+    "diagnostic.json": "1062550d47cd398a193649e3f90deba5399c4ddad9d3531bb204cb1d0047b82b",
+    "inputs.json": "db00b777824a433f90f4a50989abde7cb7fc5ada17e4de91a6a5b2731cebba5e",
+    "llguidance-engine-command.json": "682d67730889d5077c48435babfad58619aa4e52035d9e41aca829003041bdce",
+    "llguidance-isolated.json": "491215665597dc7fbc1738bea8631eb19e06e93b8df30d42d76b2612b6357e68",
+    "llguidance-logprobs.json": "31873e96b20e11ee3e7bec30bef9b33811fb765f4ec4966ff4730633b495b7cf",
+    "llguidance-raw.jsonl": "051618c2e4190f4f155143cf502ac01a71b5e9d9a81bcc7fd54b9504ae042f57",
+    "llguidance-summary.json": "91bc916fc182f86f92f2014b816757c24a5013b3dceb45d5321015c04bebe935",
+    "unconstrained-engine-command.json": "8eb8356311064060d3f17367e3fd53e4442aeb2ac4f38837e8c2c265b7391d55",
+    "unconstrained-isolated.json": "5b4aa2fab83fe0e87c89dc14cf18bd0726b658fd960c1776ab114df72f68eccf",
+    "unconstrained-logprobs.json": "b3a971dc3ed654b90d5c5830381f82c08d40e1aac8ed47f01a0071335320c5d0",
+    "unconstrained-raw.jsonl": "80a271e9b37d476d9f758ae52cbd64145ad38985043c7e427cec5a2bbc65fc39",
+    "unconstrained-summary.json": "2484da6040d1b1c20087052477a5f17490d5b71487c92a173d0e0ae1b8d4130c",
+    "xgrammar-engine-command.json": "8eb8356311064060d3f17367e3fd53e4442aeb2ac4f38837e8c2c265b7391d55",
+    "xgrammar-isolated.json": "f9214a8e6f112a0b63a7753fc54ad36598b93214ab6121f150b91f44bbf882c5",
+    "xgrammar-logprobs.json": "75d14c849efcd51f7323f3eb966c8850c3d06c0edcea9c11b4a216984d18f47e",
+    "xgrammar-raw.jsonl": "5f6014e4fe318a824521a9cad9a956806e07270ba33123c7b072c6d1b740f102",
+    "xgrammar-summary.json": "7f504b332831390c2c1d0d579c2ebbb59967539fd5c21e839d4ebafaf58322d2"
+  }
+}

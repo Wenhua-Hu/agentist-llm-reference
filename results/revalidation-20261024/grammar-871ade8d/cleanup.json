@@ -1,0 +1,19 @@
+{
+  "schema": "staging-cleanup/1",
+  "run_id": "871ade8d-3889-43d0-9c8c-bd200244a1ed",
+  "instance_id": "c406fea9-e9e8-43d9-89a2-1acfb6b07284",
+  "exact_cloud_404": true,
+  "cloud_absence_checked_at": "2026-10-24T21:23:22.088826+00:00",
+  "db_settled": true,
+  "ownership_verified": true,
+  "delete_requested": true,
+  "attempts": 3,
+  "failures": [],
+  "started_at": "2026-10-24T21:23:09.730467+00:00",
+  "updated_at": "2026-10-24T21:23:22.531575+00:00",
+  "status": "terminated",
+  "used_seconds": 364,
+  "cost_cents": 15,
+  "cleanup": "complete",
+  "finished_at": "2026-10-24T21:23:22.531556+00:00"
+}
