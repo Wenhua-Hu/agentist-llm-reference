@@ -1,4 +1,4 @@
-# Agentist Project 2 — LLM service reference implementation
+# Agentist LLM-server — 模型服务参考实现
 
 这是一份服务工程参考实现：SGLang 部署、持久化多租户凭据与实验账本、流式推理、FIFO 有界排队、取消/超时、工具 Agent、KV/前缀/Attention 实验与 CPU 测试。推理合同 llm-lab/1.0；管理合同 credential-service/1 已在独立 Daytona GPU 验证，包含真实 `/console` 与管理员 API。自动验收占 95 分、人工验收占 5 分，具体分项以平台当前项目任务书为准。历史报告不覆盖新增管理功能；当前 7B/V5 已完成标定与独立确认，自动 95/95，人工 5 分待验收。
 
@@ -12,22 +12,22 @@
 
 升级正在 staging 验证。性能门槛未标定或未独立确认时，30 分是“待评定”，不是学员失败 0 分；保留其他真实结果，暂不生成正式最终总分。控制器中断也不生成最终成绩。本轮已确认结果见 Daytona V5 实测记录；下列 A10 历史证据单独保留。
 
-## CPU 接口检查与插件命令（测试环境）
+## CPU 接口检查与 OpenLabs 插件命令
 
 本分支的 `.github/workflows/llm-soft.yml` 会在 `git push` 后，在 GitHub 托管的临时 Ubuntu CPU runner 中启动独立模型 fixture，再执行真实 `setup.sh --contract-test`、网关和 SQLite 账本。不会安装 SGLang、下载模型或申请平台 GPU。Actions Summary 显示逐项结果，`llm-soft-report` artifact 保留 `report.json` 和摘要。报告绑定完整 commit SHA；`pass / missing / invalid / blocked` 分别表示通过、缺接口、格式或行为错误、前置条件未满足。
 
-安装 OpenLabs **测试插件** 后，可让自己的 Agent 执行：
+安装正式版 **OpenLabs** 插件后，可让自己的 Agent 执行以下命令；`openlabs-test` 只用于内部测试，学员无需安装。项目名称为 `LLM-server`：
 
 ```text
-evaluate project-2 --soft
-evaluate project-2 result <返回的 job_id>
-assistant project-2 我的 SSE / rotate / 计费检查为什么失败？
-evaluate project-2 --formal --repo <owner/repo> --commit <完整40位SHA>
+evaluate LLM-server --soft
+evaluate LLM-server result <返回的 job_id>
+assistant LLM-server 我的 SSE / rotate / 计费检查为什么失败？
+evaluate LLM-server --formal --repo <owner/repo> --commit <完整40位SHA>
 ```
 
 手动 soft 使用本机 GitHub CLI（先 `gh auth login`），要求工作流存在于仓库默认分支，目标分支已经推送且 HEAD 与 SHA 一致；插件不会自动提交、push 或安装工作流。正式评测复用 `lab-login`、网页已绑定仓库、cohort-2 资格与现有 Realtime 队列；只在明确请求 `--formal` 时使用 GPU 预算和正式次数。自动 push 检查不改变 95+5 分成绩，不证明模型质量、吞吐、TTFT、TPOT、KV Cache 或 GPU 优化达标。CPU 报告属于可修改的自测证据，正式评分仍由平台独立评测器产生。
 
-任务说明及当前检查器下载见 [测试任务书](https://test.lab.parallight.ai/lab/llm-lab/taskbook)。不向工作流提供平台凭据、Daytona/Lambda API Key 或生产密钥。公开仓库默认可查看 Actions 日志；脚本只使用一次性测试密钥。
+学员任务说明及当前检查器下载见 [项目任务书](https://agentist.org/lab/llm-lab/taskbook)。内部验收使用 [测试环境任务书](https://test.lab.parallight.ai/lab/llm-lab/taskbook)，测试环境成绩不自动发布到正式环境。不要向工作流提供平台凭据、Daytona/Lambda API Key 或生产密钥。公开仓库默认可查看 Actions 日志；脚本只使用一次性测试密钥。
 
 ## 历史 A10 彩排（不作为当前验收）
 

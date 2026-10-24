@@ -199,6 +199,21 @@ def verify_native_packages(python, lock_path=ROOT / 'requirements-native-linux-p
     return manifest
 
 
+def install_cached_wheels(python):
+    """Seed only exact locked wheels; pip's index can outrank --find-links."""
+    if not os.environ.get('PIP_FIND_LINKS'):
+        return
+    wheels = json.loads(subprocess.check_output([
+        str(python), str(ROOT / 'scripts/wheel_cache.py'),
+        str(ROOT / 'requirements-native-linux-py312.lock')], text=True))
+    print(f'Local wheel cache: {len(wheels)} compatible locked packages', flush=True)
+    if wheels:
+        # No dependency resolution here: the complete locked resolution and
+        # pip check below still run before any gateway or GPU engine starts.
+        run([python, '-m', 'pip', 'install', '--disable-pip-version-check',
+             '--no-index', '--no-deps', *wheels])
+
+
 def healthy(host, port):
     try:
         with urllib.request.urlopen(f'http://{host}:{port}/healthz', timeout=2) as response:
@@ -291,6 +306,8 @@ def main():
             run([sys.executable, '-m', 'venv', ROOT / '.venv'])
         engine_python = os.environ.get('SGLANG_PYTHON')
         external_runtime = bool(engine_python)
+        if not contract_test and not external_runtime:
+            install_cached_wheels(gateway_python)
         # Resolve gateway, engine and analysis together; later installs must not
         # silently upgrade an earlier contract pin (e.g. idna).
         requirements = ('requirements.lock',) if contract_test else (('requirements.lock', 'requirements-tokenizer.lock') if external_runtime else DEPENDENCY_FILES)

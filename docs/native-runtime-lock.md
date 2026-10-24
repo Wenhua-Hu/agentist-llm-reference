@@ -1,5 +1,15 @@
 # 原生运行时复现边界
 
+## 下载缓存与首次安装
+
+Daytona 提供的 `/opt/llm-cache/wheels` 只是下载缓存，不是已经装好的项目环境。仅设置 `PIP_FIND_LINKS` 不能保证 pip 优先使用本地 wheel；2026-10-24 实测发现它仍会选择公网的同版本 PyTorch，重复下载约 900 MB。
+
+现在默认原生 setup 在目标 venv 的 Python 下运行 `scripts/wheel_cache.py`，只选择完整锁中版本完全匹配、且 Python/ABI/平台标签兼容的本地 wheel，先用 `--no-index --no-deps` 安装。随后正常执行完整依赖解析、`pip check` 和 175 包版本集合核对；缺少的包从原配置的索引补齐。不安装缓存中的其他版本或锁外包；不改变模型、精度、性能门槛或安装时限。
+
+缓存可选：未提供 `PIP_FIND_LINKS` 或没有匹配 wheel 时走正常网络安装。网络冷下载和命中下载缓存的耗时必须分别说明；两者仍从新项目 venv 安装。损坏的已选缓存会明确报错，不静默跳过校验。CPU `--contract-test` 和显式外部引擎模式不会预装 GPU 依赖。
+
+## 锁定与复现
+
 `requirements.lock` 是网关与 CPU 测试依赖，`requirements-runtime.lock` 是引擎关键约束，`requirements-analysis.lock` 是实验与绘图依赖。`requirements-native-linux-py312.lock` 补全 Linux x86_64 / Python 3.12 的所有已安装发行包版本。默认原生 setup 在一次 pip 解析中同时应用四份文件，随后运行 `pip check` 并核对完整集合；不会让第二次引擎安装悄悄升级先前固定的网关依赖。
 
 完整锁来自 Daytona 运行 `39065b3b-fa51-4078-8b5c-ea322efa9fa8`、源码 `ce1fa35c2592381a201b5ccf4f2a599d10a8c93b` 的 175 个发行包，Python 3.12.3，pip check 为 0。捕获时依赖安装成功；这本身不代表整套 GPU 评测通过。安装后实际 idna 为 3.20，因此网关约束同步为 3.20，避免与实际兼容集合冲突。捕获记录不含 direct URL、本地路径安装或凭据。
