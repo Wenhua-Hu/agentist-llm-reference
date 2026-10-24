@@ -1,0 +1,17 @@
+{
+  "run": {
+    "id": "73abcd2e-8dc7-4d90-98a4-43c8ad72fe52",
+    "commit_sha": "9ebf07bbc62b21eb061c311b6b3b9c2c63bc0582",
+    "instance_id": "366fec1d-819f-43ab-ac31-203d6f83f8c8",
+    "status": "terminated",
+    "phase": "云端已确认回收",
+    "grading_environment": "staging",
+    "ready_at": "2026-10-24T21:06:49.830601+00:00",
+    "ended_at": "2026-10-24T21:13:11.979561+00:00",
+    "used_seconds": 383,
+    "cost_cents": 15,
+    "provider_verification": "direct_404"
+  },
+  "provider_direct_read_verified": true,
+  "note": "诊断清理程序的 receipt 文件写入被可信目录检查拒绝；独立读取供应商直接404和数据库终止/结算状态再次验证回收。未修改目录权限或常驻服务。"
+}

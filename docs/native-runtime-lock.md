@@ -10,7 +10,7 @@ Daytona 提供的 `/opt/llm-cache/wheels` 只是下载缓存，不是已经装�
 
 ## 锁定与复现
 
-`requirements.lock` 是网关与 CPU 测试依赖，`requirements-runtime.lock` 是引擎关键约束，`requirements-analysis.lock` 是实验与绘图依赖。`requirements-native-linux-py312.lock` 补全 Linux x86_64 / Python 3.12 的所有已安装发行包版本。默认原生 setup 在一次 pip 解析中同时应用四份文件，随后运行 `pip check` 并核对完整集合；不会让第二次引擎安装悄悄升级先前固定的网关依赖。
+`requirements.lock` 是网关与 CPU 测试依赖，`requirements-runtime.lock` 是引擎关键约束，`requirements-analysis.lock` 是实验与绘图依赖，`requirements-tokenizer.lock` 固定 tokenizer 依赖。`requirements-native-linux-py312.lock` 补全 Linux x86_64 / Python 3.12 的所有已安装发行包版本。默认原生 setup 在一次 pip 解析中同时应用这五份文件，随后运行 `pip check` 并核对完整集合；不会让第二次引擎安装悄悄升级先前固定的网关依赖。
 
 完整锁来自 Daytona 运行 `39065b3b-fa51-4078-8b5c-ea322efa9fa8`、源码 `ce1fa35c2592381a201b5ccf4f2a599d10a8c93b` 的 175 个发行包，Python 3.12.3，pip check 为 0。捕获时依赖安装成功；这本身不代表整套 GPU 评测通过。安装后实际 idna 为 3.20，因此网关约束同步为 3.20，避免与实际兼容集合冲突。捕获记录不含 direct URL、本地路径安装或凭据。
 

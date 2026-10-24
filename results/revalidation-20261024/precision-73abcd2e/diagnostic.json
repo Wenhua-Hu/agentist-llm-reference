@@ -1,0 +1,11 @@
+{
+  "official_score": false,
+  "complete": true,
+  "input_sha256": "de5e7a01aa56b88e4ad7170078cbc243311f3b2caa20daf507b3061f8697eb66",
+  "cases": 88,
+  "variants": [
+    "bf16_head",
+    "fp32_head"
+  ],
+  "patched_worktree_for_diagnostic_only": true
+}

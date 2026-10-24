@@ -1,0 +1,3924 @@
+{
+  "contract": "llm-lab/1.0",
+  "rubric": "llm-lab/5.0",
+  "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+  "commit_sha": "9ebf07bbc62b21eb061c311b6b3b9c2c63bc0582",
+  "automatic_score": 87.5,
+  "automatic_max": 95,
+  "manual_max": 5,
+  "provisional": false,
+  "evaluation_purpose": "staging_evaluation",
+  "checks": [
+    {
+      "id": "credentials",
+      "title": "Token 管理与计费",
+      "points": 15,
+      "max": 15,
+      "detail": "15项CPU独立测试原始结果保留；三个5分子组还必须分别通过真实optimized服务联合验证，未验证组不得分。",
+      "subchecks": [
+        {
+          "id": "key_lifecycle",
+          "title": "密钥生命周期与隔离",
+          "points": 5,
+          "max": 5,
+          "detail": "用户与管理员隔离：通过；密钥仅首次展示且不明文落盘：通过；零宽限轮换：通过；撤销与到期：通过；禁用用户：通过",
+          "cpu_points": 5,
+          "deployment_passed": true
+        },
+        {
+          "id": "metering_billing",
+          "title": "用量与计费账本",
+          "points": 5,
+          "max": 5,
+          "detail": "非流式精确计费：通过；SSE独立usage计费：通过；20次重复请求只生成扣费一次：通过；价格版本与历史账单：通过；充值幂等：通过",
+          "cpu_points": 5,
+          "deployment_passed": true
+        },
+        {
+          "id": "quota_recovery",
+          "title": "额度、并发与故障恢复",
+          "points": 5,
+          "max": 5,
+          "detail": "20并发不透支：通过；多key共享token额度：通过；多key共享RPM：通过；断流取消与名额释放：通过；崩溃恢复与未知用量审计：通过",
+          "cpu_points": 5,
+          "deployment_passed": true
+        }
+      ],
+      "cases": [
+        {
+          "id": "isolation",
+          "title": "用户与管理员隔离",
+          "group": "key_lifecycle",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "storage",
+          "title": "密钥仅首次展示且不明文落盘",
+          "group": "key_lifecycle",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "rotate",
+          "title": "零宽限轮换",
+          "group": "key_lifecycle",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "revoke_expiry",
+          "title": "撤销与到期",
+          "group": "key_lifecycle",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "disabled",
+          "title": "禁用用户",
+          "group": "key_lifecycle",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "nonstream_billing",
+          "title": "非流式精确计费",
+          "group": "metering_billing",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "stream_billing",
+          "title": "SSE独立usage计费",
+          "group": "metering_billing",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "idempotency",
+          "title": "20次重复请求只生成扣费一次",
+          "group": "metering_billing",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "pricing",
+          "title": "价格版本与历史账单",
+          "group": "metering_billing",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "credits",
+          "title": "充值幂等",
+          "group": "metering_billing",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "reservation",
+          "title": "20并发不透支",
+          "group": "quota_recovery",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "token_quota",
+          "title": "多key共享token额度",
+          "group": "quota_recovery",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "rpm",
+          "title": "多key共享RPM",
+          "group": "quota_recovery",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "cancel",
+          "title": "断流取消与名额释放",
+          "group": "quota_recovery",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        },
+        {
+          "id": "recovery",
+          "title": "崩溃恢复与未知用量审计",
+          "group": "quota_recovery",
+          "passed": true,
+          "detail": "independent checks passed",
+          "executed": true
+        }
+      ],
+      "contract": "credential-service/1",
+      "suite": "controller-mock/1",
+      "cpu_points": 15,
+      "deployment_passed": true,
+      "live_checks": [
+        {
+          "id": "key_lifecycle",
+          "title": "真实服务：隔离与密钥轮换",
+          "passed": true,
+          "detail": "真实服务联合验证通过",
+          "evidence": {
+            "two_tenants_stream_nonstream": true,
+            "old_key_http": 401,
+            "new_key_http": 200,
+            "denied_write_routes": 7,
+            "management_state_unchanged": true
+          }
+        },
+        {
+          "id": "metering_billing",
+          "title": "真实服务：流式及非流式计费",
+          "passed": true,
+          "detail": "真实服务联合验证通过",
+          "evidence": {
+            "independent_input_tokens": 36,
+            "reported_usage": [
+              {
+                "prompt_tokens": 36,
+                "completion_tokens": 3,
+                "total_tokens": 39
+              },
+              {
+                "prompt_tokens": 36,
+                "completion_tokens": 3,
+                "total_tokens": 39
+              }
+            ],
+            "output_sanity_checks": [
+              {
+                "visible_text_tokens": 2,
+                "reported_completion_tokens": 3,
+                "minimum": 1,
+                "maximum": 6,
+                "exact_generated_tokens_verified": false
+              },
+              {
+                "visible_text_tokens": 2,
+                "reported_completion_tokens": 3,
+                "minimum": 1,
+                "maximum": 6,
+                "exact_generated_tokens_verified": false
+              }
+            ],
+            "expected_micro_usd": 180,
+            "ledger_micro_usd": 180,
+            "bootstrap_metered": true,
+            "bootstrap_output_check": {
+              "visible_text_tokens": 2,
+              "reported_completion_tokens": 3,
+              "minimum": 1,
+              "maximum": 6,
+              "exact_generated_tokens_verified": false
+            },
+            "agent_billing": {
+              "tenants_checked": 2,
+              "parent_bills": 2,
+              "model_child_bills": 4,
+              "model_calls_per_tenant": [
+                2,
+                2
+              ],
+              "debits_micro_usd": [
+                600,
+                618
+              ],
+              "retry_deduplicated": true,
+              "exact_generated_tokens_verified": false
+            },
+            "usage_verification": "input independently tokenized; output visible-text sanity bounds and ledger consistency, not exact engine-token audit"
+          }
+        },
+        {
+          "id": "quota_recovery",
+          "title": "真实服务：用户额度准入",
+          "passed": true,
+          "detail": "真实服务联合验证通过",
+          "evidence": {
+            "shared_rpm_http": 429,
+            "empty_balance_http": 402
+          }
+        }
+      ]
+    },
+    {
+      "id": "reproduce",
+      "title": "从空环境重建",
+      "points": 5,
+      "max": 5,
+      "detail": "首次就绪；重复启动通过。"
+    },
+    {
+      "id": "api",
+      "title": "服务接口与部署",
+      "points": 5.0,
+      "max": 5,
+      "detail": "最终 optimized 服务：鉴权1、模型信息0.5、非流式0.5、流式1、过载1、取消恢复1；{\"health\": true, \"auth\": true, \"models\": true, \"info\": true, \"neutral_decoding\": true, \"nonstream\": true, \"streamed\": true, \"overload\": true, \"cancellation\": true}"
+    },
+    {
+      "id": "quality",
+      "title": "模型输出正确性",
+      "points": 5,
+      "max": 5,
+      "detail": "仅最终 optimized 服务的 384 个请求：成功率 100.0%，对全部请求的正确率 99.7%。baseline 负对照失败保留在原始证据中，不混入最终服务分母。"
+    },
+    {
+      "id": "performance",
+      "title": "并发吞吐与 SLO 硬指标",
+      "points": 22.5,
+      "max": 30,
+      "detail": "3/4 个性能目标通过；逐项实测与阈值见性能验收表。"
+    },
+    {
+      "id": "agent",
+      "title": "为 Agent 提供模型",
+      "points": 5.0,
+      "max": 5,
+      "detail": "10/10 个新任务完成；真实调用链待项目验收复核。"
+    },
+    {
+      "id": "kv",
+      "title": "KV Cache 与显存管理",
+      "points": 10,
+      "max": 10,
+      "detail": "本次原理实验与最终服务配置合计 10/10；机制 2 分需同时满足实验原始证据与线上配置声明，不要求每项必然加速。",
+      "subchecks": [
+        {
+          "id": "provenance",
+          "title": "执行与溯源",
+          "points": 2,
+          "max": 2,
+          "detail": "本次独立 GPU 上执行；新目录、时间、commit、模型 revision、硬件、软件版本与完成记录匹配。数值失败导致非零退出不抹去已完成实验；通过。"
+        },
+        {
+          "id": "coverage",
+          "title": "实验矩阵覆盖",
+          "points": 2,
+          "max": 2,
+          "detail": "缓存开/关 × 长度 128/512 × 3 轮，共 12 条；每条固定 32 个 decode token；至少 1 次预热；通过。"
+        },
+        {
+          "id": "inputs",
+          "title": "输入一致性",
+          "points": 1,
+          "max": 1,
+          "detail": "每个长度的缓存开/关及各轮使用相同 prompt、固定 continuation 和 dtype；通过。"
+        },
+        {
+          "id": "metrics",
+          "title": "性能原始数据",
+          "points": 1,
+          "max": 1,
+          "detail": "12 条原始耗时与 allocated/reserved 峰值均有效；不以加速倍数大小计分；通过。"
+        },
+        {
+          "id": "correctness",
+          "title": "输出与数值正确性",
+          "points": 2,
+          "max": 2,
+          "detail": "逐位置 logits 最大绝对误差：BF16 ≤ 0.15，FP32 ≤ 0.001；top-1 一致率 100%。固定容差，不因失败放宽；通过。"
+        },
+        {
+          "id": "mechanism",
+          "title": "机制证据",
+          "points": 2,
+          "max": 2,
+          "detail": "独立核对指定模型 2×L×Hkv×dh×字节数×token 数的 KV 容量，含 1/8 请求；allocator reserved 不当作有效 KV；通过。；最终服务配置声明：SGLang optimized max_total_tokens > positive baseline budget（通过；配置声明不能替代真实运行证据）",
+          "deployment_passed": true
+        }
+      ],
+      "deployment_passed": true
+    },
+    {
+      "id": "prefix",
+      "title": "RadixAttention 与前缀复用",
+      "points": 10,
+      "max": 10,
+      "detail": "本次原理实验与最终服务配置合计 10/10；机制 2 分需同时满足实验原始证据与线上配置声明，不要求每项必然加速。",
+      "subchecks": [
+        {
+          "id": "provenance",
+          "title": "执行与溯源",
+          "points": 2,
+          "max": 2,
+          "detail": "本次独立 GPU 上执行；新目录、时间、commit、模型 revision、硬件、软件版本与完成记录匹配。数值失败导致非零退出不抹去已完成实验；通过。"
+        },
+        {
+          "id": "coverage",
+          "title": "实验矩阵覆盖",
+          "points": 2,
+          "max": 2,
+          "detail": "开/关 × 共享/不同前缀 × 3 轮 × 8 请求，共 96 条；每轮清缓存，首条冷缓存；通过。"
+        },
+        {
+          "id": "inputs",
+          "title": "输入一致性",
+          "points": 1,
+          "max": 1,
+          "detail": "保存完整 token IDs；独立重算哈希；共享组恰好 512 前缀 token，不同组八个前缀互异，全文等长；通过。"
+        },
+        {
+          "id": "metrics",
+          "title": "性能原始数据",
+          "points": 1,
+          "max": 1,
+          "detail": "96 条 TTFT/E2E 和 cached_tokens 有效，12 次清缓存成功记录完整；goodput 可为零；通过。"
+        },
+        {
+          "id": "correctness",
+          "title": "输出与数值正确性",
+          "points": 2,
+          "max": 2,
+          "detail": "直接核对全部 96 个原始输出为 OK，传输成功；不采信自报 quality_pass；通过。"
+        },
+        {
+          "id": "mechanism",
+          "title": "机制证据",
+          "points": 2,
+          "max": 2,
+          "detail": "关缓存命中为 0；共享热请求复用 ≥512 tokens；每轮首条冷请求及不同前缀均 <512；不要求必然加速；通过。；最终服务配置声明：SGLang optimized prefix_cache=true（通过；配置声明不能替代真实运行证据）",
+          "deployment_passed": true
+        }
+      ],
+      "deployment_passed": true
+    },
+    {
+      "id": "attention",
+      "title": "FlashAttention 与算子优化",
+      "points": 10,
+      "max": 10,
+      "detail": "本次原理实验与最终服务配置合计 10/10；机制 2 分需同时满足实验原始证据与线上配置声明，不要求每项必然加速。",
+      "subchecks": [
+        {
+          "id": "provenance",
+          "title": "执行与溯源",
+          "points": 2,
+          "max": 2,
+          "detail": "本次独立 GPU 上执行；新目录、时间、commit、模型 revision、硬件、软件版本与完成记录匹配。数值失败导致非零退出不抹去已完成实验；通过。"
+        },
+        {
+          "id": "coverage",
+          "title": "实验矩阵覆盖",
+          "points": 2,
+          "max": 2,
+          "detail": "math/flash × N=128/512/1024 × 3 轮，共 18 条；预热 5 次，每轮 10 次；BF16、causal、dropout=0；通过。"
+        },
+        {
+          "id": "inputs",
+          "title": "输入一致性",
+          "points": 1,
+          "max": 1,
+          "detail": "B=1,H=8,dh=64；同一长度的 Q/K/V 哈希、输出形状在全部轮次和后端匹配；通过。"
+        },
+        {
+          "id": "metrics",
+          "title": "性能原始数据",
+          "points": 1,
+          "max": 1,
+          "detail": "18 条计时与显存峰值有效；同步后计时，性能提升幅度不计分；通过。"
+        },
+        {
+          "id": "correctness",
+          "title": "输出与数值正确性",
+          "points": 2,
+          "max": 2,
+          "detail": "math 与 flash 输出最大绝对误差 ≤ 0.02，固定容差；通过。"
+        },
+        {
+          "id": "mechanism",
+          "title": "机制证据",
+          "points": 2,
+          "max": 2,
+          "detail": "三个长度的 profiler 算子记录分别含实际 math 与 FlashAttention kernel；这是微实验，不冒充线上服务后端；通过。；最终服务配置声明：RTX 4090 SGLang optimized attention_backend=flashinfer（通过；配置声明不能替代真实运行证据）",
+          "deployment_passed": true
+        }
+      ],
+      "deployment_passed": true
+    }
+  ],
+  "performance": [
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 70.77392743807286,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 12.250273955174022,
+      "all_success_output_tokens_per_second": 12.250273955174022,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 17,
+      "max_output_tokens": 19,
+      "slo_attainment": null,
+      "quality_goodput": null,
+      "ttft_p95_ms": 1327.730800025165,
+      "tpot_p95_ms": 17.965793390484418,
+      "e2e_p95_ms": 1652.3340810090303,
+      "event_gap_p95_p95_ms": 27.89311483502388,
+      "timing_complete": true,
+      "profile": "baseline",
+      "workload": "short",
+      "concurrency": 1,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 512,
+      "max_output_tokens_requested": 96,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 21.89110478106886,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 39.924892267466724,
+      "all_success_output_tokens_per_second": 39.924892267466724,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 18,
+      "max_output_tokens": 19,
+      "slo_attainment": null,
+      "quality_goodput": null,
+      "ttft_p95_ms": 2183.5495829582214,
+      "tpot_p95_ms": 17.84449372002307,
+      "e2e_p95_ms": 2510.304403025657,
+      "event_gap_p95_p95_ms": 51.519209053367376,
+      "timing_complete": true,
+      "profile": "baseline",
+      "workload": "short",
+      "concurrency": 4,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 512,
+      "max_output_tokens_requested": 96,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 47,
+      "window_seconds": 21.6544121876359,
+      "success_rate": 1.0,
+      "quality_rate": 0.9791666666666666,
+      "output_tokens_per_second": 39.668590057155484,
+      "all_success_output_tokens_per_second": 40.499829429715206,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 17,
+      "max_output_tokens": 19,
+      "slo_attainment": 0.125,
+      "quality_goodput": 0.27707979085323975,
+      "ttft_p95_ms": 3785.56872298941,
+      "tpot_p95_ms": 17.808568006490958,
+      "e2e_p95_ms": 4113.00368886441,
+      "event_gap_p95_p95_ms": 26.89613215625286,
+      "timing_complete": true,
+      "profile": "baseline",
+      "workload": "short",
+      "concurrency": 8,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 512,
+      "max_output_tokens_requested": 96,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 21.664510074537247,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 40.15784326563328,
+      "all_success_output_tokens_per_second": 40.15784326563328,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 17,
+      "max_output_tokens": 19,
+      "slo_attainment": 0.16666666666666666,
+      "quality_goodput": 0.36926752428168536,
+      "ttft_p95_ms": 6842.708921991289,
+      "tpot_p95_ms": 18.311026423950405,
+      "e2e_p95_ms": 7177.177140954882,
+      "event_gap_p95_p95_ms": 36.42847994342446,
+      "timing_complete": true,
+      "profile": "baseline",
+      "workload": "short",
+      "concurrency": 16,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 512,
+      "max_output_tokens_requested": 96,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 270.4180863997899,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 44.3905219499746,
+      "all_success_output_tokens_per_second": 44.3905219499746,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 246,
+      "max_output_tokens": 254,
+      "slo_attainment": null,
+      "quality_goodput": null,
+      "ttft_p95_ms": 1303.397114854306,
+      "tpot_p95_ms": 17.872707445144535,
+      "e2e_p95_ms": 5787.597215734422,
+      "event_gap_p95_p95_ms": 22.679436951875687,
+      "timing_complete": true,
+      "profile": "baseline",
+      "workload": "long",
+      "concurrency": 1,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 1024,
+      "max_output_tokens_requested": 384,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 222.17978087393567,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 53.9383014640729,
+      "all_success_output_tokens_per_second": 53.9383014640729,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 246,
+      "max_output_tokens": 254,
+      "slo_attainment": null,
+      "quality_goodput": null,
+      "ttft_p95_ms": 14727.016298100352,
+      "tpot_p95_ms": 17.907708658870444,
+      "e2e_p95_ms": 19175.71216216311,
+      "event_gap_p95_p95_ms": 22.44189800694585,
+      "timing_complete": true,
+      "profile": "baseline",
+      "workload": "long",
+      "concurrency": 4,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 1024,
+      "max_output_tokens_requested": 384,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 36,
+      "quality_pass": 36,
+      "window_seconds": 187.73141808295622,
+      "success_rate": 0.75,
+      "quality_rate": 0.75,
+      "output_tokens_per_second": 48.042038419028046,
+      "all_success_output_tokens_per_second": 48.042038419028046,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 247,
+      "max_output_tokens": 253,
+      "slo_attainment": 0.0625,
+      "quality_goodput": 0.015980276666712957,
+      "ttft_p95_ms": 26252.030782867223,
+      "tpot_p95_ms": 17.88495665602386,
+      "e2e_p95_ms": 30726.73318721354,
+      "event_gap_p95_p95_ms": 23.04536197334528,
+      "timing_complete": true,
+      "profile": "baseline",
+      "workload": "long",
+      "concurrency": 8,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 1024,
+      "max_output_tokens_requested": 384,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 18,
+      "quality_pass": 18,
+      "window_seconds": 94.04236903972924,
+      "success_rate": 0.375,
+      "quality_rate": 0.375,
+      "output_tokens_per_second": 47.90393995813539,
+      "all_success_output_tokens_per_second": 47.90393995813539,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 248,
+      "max_output_tokens": 252,
+      "slo_attainment": 0.0625,
+      "quality_goodput": 0.03190051495547307,
+      "ttft_p95_ms": 24059.188880957663,
+      "tpot_p95_ms": 17.84855175204575,
+      "e2e_p95_ms": 28524.956772103906,
+      "event_gap_p95_p95_ms": 22.918335162103176,
+      "timing_complete": true,
+      "profile": "baseline",
+      "workload": "long",
+      "concurrency": 16,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 1024,
+      "max_output_tokens_requested": 384,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 67.85623785667121,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 12.777012510350392,
+      "all_success_output_tokens_per_second": 12.777012510350392,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 17,
+      "max_output_tokens": 19,
+      "slo_attainment": null,
+      "quality_goodput": null,
+      "ttft_p95_ms": 1187.7420959062874,
+      "tpot_p95_ms": 17.699259607230914,
+      "e2e_p95_ms": 1506.116536911577,
+      "event_gap_p95_p95_ms": 24.473886936903,
+      "timing_complete": true,
+      "profile": "optimized",
+      "workload": "short",
+      "concurrency": 1,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 512,
+      "max_output_tokens_requested": 96,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 18.028761906083673,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 48.478093202011564,
+      "all_success_output_tokens_per_second": 48.478093202011564,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 18,
+      "max_output_tokens": 19,
+      "slo_attainment": null,
+      "quality_goodput": null,
+      "ttft_p95_ms": 1210.5911909602582,
+      "tpot_p95_ms": 22.19866931109744,
+      "e2e_p95_ms": 1590.2705769985914,
+      "event_gap_p95_p95_ms": 47.37755795940757,
+      "timing_complete": true,
+      "profile": "optimized",
+      "workload": "short",
+      "concurrency": 4,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 512,
+      "max_output_tokens_requested": 96,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 47,
+      "window_seconds": 9.440428139641881,
+      "success_rate": 1.0,
+      "quality_rate": 0.9791666666666666,
+      "output_tokens_per_second": 90.99163589762634,
+      "all_success_output_tokens_per_second": 92.79240168372604,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 17,
+      "max_output_tokens": 19,
+      "slo_attainment": 0.9791666666666666,
+      "quality_goodput": 4.978587761569776,
+      "ttft_p95_ms": 1272.7019670419395,
+      "tpot_p95_ms": 23.993065772468555,
+      "e2e_p95_ms": 1637.2644333168864,
+      "event_gap_p95_p95_ms": 90.76364478096366,
+      "timing_complete": true,
+      "profile": "optimized",
+      "workload": "short",
+      "concurrency": 8,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 512,
+      "max_output_tokens_requested": 96,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 5.1887532896362245,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 167.6703345556432,
+      "all_success_output_tokens_per_second": 167.6703345556432,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 17,
+      "max_output_tokens": 19,
+      "slo_attainment": 1.0,
+      "quality_goodput": 9.250777078932039,
+      "ttft_p95_ms": 1268.2959293015301,
+      "tpot_p95_ms": 24.17845018755864,
+      "e2e_p95_ms": 1739.1105368733406,
+      "event_gap_p95_p95_ms": 115.44553469866514,
+      "timing_complete": true,
+      "profile": "optimized",
+      "workload": "short",
+      "concurrency": 16,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 512,
+      "max_output_tokens_requested": 96,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 264.0630563618615,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 45.45883913253733,
+      "all_success_output_tokens_per_second": 45.45883913253733,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 246,
+      "max_output_tokens": 254,
+      "slo_attainment": null,
+      "quality_goodput": null,
+      "ttft_p95_ms": 1210.7707280665636,
+      "tpot_p95_ms": 17.609288887826786,
+      "e2e_p95_ms": 5614.526721183211,
+      "event_gap_p95_p95_ms": 20.764507818967104,
+      "timing_complete": true,
+      "profile": "optimized",
+      "workload": "long",
+      "concurrency": 1,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 1024,
+      "max_output_tokens_requested": 384,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 69.75434896862134,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 171.80290802213557,
+      "all_success_output_tokens_per_second": 171.80290802213557,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 246,
+      "max_output_tokens": 254,
+      "slo_attainment": null,
+      "quality_goodput": null,
+      "ttft_p95_ms": 1264.1787696629763,
+      "tpot_p95_ms": 18.92038946223247,
+      "e2e_p95_ms": 5919.935091864318,
+      "event_gap_p95_p95_ms": 22.423310671001673,
+      "timing_complete": true,
+      "profile": "optimized",
+      "workload": "long",
+      "concurrency": 4,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 1024,
+      "max_output_tokens_requested": 384,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 35.451629685238004,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 338.7996576360877,
+      "all_success_output_tokens_per_second": 338.7996576360877,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 247,
+      "max_output_tokens": 253,
+      "slo_attainment": 1.0,
+      "quality_goodput": 1.3539575028334203,
+      "ttft_p95_ms": 1258.0058379098773,
+      "tpot_p95_ms": 19.066065209487594,
+      "e2e_p95_ms": 5955.446043051779,
+      "event_gap_p95_p95_ms": 22.738805040717125,
+      "timing_complete": true,
+      "profile": "optimized",
+      "workload": "long",
+      "concurrency": 8,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 1024,
+      "max_output_tokens_requested": 384,
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    {
+      "requests": 48,
+      "successful": 48,
+      "quality_pass": 48,
+      "window_seconds": 18.673647452145815,
+      "success_rate": 1.0,
+      "quality_rate": 1.0,
+      "output_tokens_per_second": 643.3665426525687,
+      "all_success_output_tokens_per_second": 643.3665426525687,
+      "usage_verified": true,
+      "token_count_source": "controller_retokenized_visible_text",
+      "min_output_tokens": 247,
+      "max_output_tokens": 253,
+      "slo_attainment": 1.0,
+      "quality_goodput": 2.5704672921028213,
+      "ttft_p95_ms": 1401.6708782874048,
+      "tpot_p95_ms": 19.921723230268864,
+      "e2e_p95_ms": 6237.501036841422,
+      "event_gap_p95_p95_ms": 24.249895941466093,
+      "timing_complete": true,
+      "profile": "optimized",
+      "workload": "long",
+      "concurrency": 16,
+      "repeats": 3,
+      "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+      "measurement_version": "controller-sse/2",
+      "decoding_policy": {
+        "temperature": 0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "sampling_defaults": "openai"
+      },
+      "input_tokens": 1024,
+      "max_output_tokens_requested": 384,
+      "response_format": {
+        "type": "json_object"
+      }
+    }
+  ],
+  "setup_seconds": 277.9186647180468,
+  "acceptance": {
+    "schema": "llm-serving-acceptance/1",
+    "version": "daytona-4090-v5-confirmed-5e2971c9",
+    "status": "calibrated",
+    "hardware_contains": "RTX 4090",
+    "model_id": "Qwen/Qwen2.5-7B-Instruct",
+    "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "dtype": "bfloat16",
+    "workload_version": "typed-json-numbered-records-prose-exact-input/5",
+    "concurrencies": [
+      1,
+      4,
+      8,
+      16
+    ],
+    "repeats": 3,
+    "requests_per_repeat": 16,
+    "deadline_seconds": 45,
+    "warmup_requests": 2,
+    "workloads": [
+      {
+        "id": "short",
+        "input_tokens": 512,
+        "records": 1,
+        "max_output_tokens": 96
+      },
+      {
+        "id": "long",
+        "input_tokens": 1024,
+        "records": 8,
+        "max_output_tokens": 384
+      }
+    ],
+    "targets": [
+      {
+        "workload": "short",
+        "concurrency": 8,
+        "output_tokens_per_second_min": 71,
+        "ttft_p95_ms_max": 1780,
+        "tpot_p95_ms_max": 35,
+        "e2e_p95_ms_max": 2350,
+        "slo_attainment_min": 0.95,
+        "success_rate_min": 0.99,
+        "quality_rate_min": 0.99,
+        "quality_goodput_min": 3.67
+      },
+      {
+        "workload": "short",
+        "concurrency": 16,
+        "output_tokens_per_second_min": 128,
+        "ttft_p95_ms_max": 1830,
+        "tpot_p95_ms_max": 40,
+        "e2e_p95_ms_max": 2600,
+        "slo_attainment_min": 0.95,
+        "success_rate_min": 0.99,
+        "quality_rate_min": 0.99,
+        "quality_goodput_min": 6.63
+      },
+      {
+        "workload": "long",
+        "concurrency": 8,
+        "output_tokens_per_second_min": 254,
+        "ttft_p95_ms_max": 1870,
+        "tpot_p95_ms_max": 29,
+        "e2e_p95_ms_max": 8900,
+        "slo_attainment_min": 0.95,
+        "success_rate_min": 0.99,
+        "quality_rate_min": 0.99,
+        "quality_goodput_min": 0.95
+      },
+      {
+        "workload": "long",
+        "concurrency": 16,
+        "output_tokens_per_second_min": 485,
+        "ttft_p95_ms_max": 2070,
+        "tpot_p95_ms_max": 30,
+        "e2e_p95_ms_max": 9350,
+        "slo_attainment_min": 0.95,
+        "success_rate_min": 0.99,
+        "quality_rate_min": 0.99,
+        "quality_goodput_min": 1.81
+      }
+    ],
+    "calibration": {
+      "run_id": "5e2971c9-b435-4e24-819d-c9eac79e7b9d",
+      "instance_id": "75f93d84-928b-4b9f-bc1a-9d4a47f14a22",
+      "provider": "daytona",
+      "seed": 12060058171086813211,
+      "seed_decimal": "12060058171086813211",
+      "commit_sha": "9961c0503c2eb3fa702794ef9281dd88f96d9456",
+      "hardware": "NVIDIA GeForce RTX 4090, GPU-86d51578-eb8d-9de3-1f56-67da7f9a4c06, 580.178.04, 23028 MiB",
+      "files_sha256": {
+        "baseline-long-c1-r0-inputs.json": "3ab54ebd6544ca8ba60b6c22ba448a2db8ba4dfc6430203390dfe717f26cc908",
+        "baseline-long-c1-r1-inputs.json": "7efcda2354fe2753579c00ba19d678677dfea91796ae22659dad1c1701e7c88b",
+        "baseline-long-c1-r2-inputs.json": "44a325a01db8ecdc936ae0f8dac177093a616763c87463ed0f319923a1b47c5d",
+        "baseline-long-c16-r0-inputs.json": "09e71d37ed0fcd33ef9344a0a5f8d0ca601b2455bbd382c2454172b61d467c21",
+        "baseline-long-c16-r1-inputs.json": "2bb5bb425ea163d6292294b7834b64164c76b00c12d37640654696fd2607ad2b",
+        "baseline-long-c16-r2-inputs.json": "20ed11aa73dd73c5a6bb7f16b00993d7816bcfa9910bea2e729f46a18f620baf",
+        "baseline-long-c4-r0-inputs.json": "90e34f575c3e7eb4df86bd149acafcfdc69d30a8cc02473a58495fda0729206a",
+        "baseline-long-c4-r1-inputs.json": "22d46e739154fbb2e824887fc8f49b8879fac9af9b26e6faf27ef9f4c96b36e1",
+        "baseline-long-c4-r2-inputs.json": "70c167a0c48826aeb87b7645c424f906f618df2524f931ada98e6397fec78a73",
+        "baseline-long-c8-r0-inputs.json": "5c9f6a27b154113dbf63dbf0947fc13152a569dffaaa52db3c93136978b9a8b0",
+        "baseline-long-c8-r1-inputs.json": "0af66b9d10089c8955b0bc0aefb4b9e169000409455e3480faba757a3867c4a6",
+        "baseline-long-c8-r2-inputs.json": "8befd4f015d6215468b6b279f51a5600fd6f34d2fa276b3bbed389e4c26c263b",
+        "baseline-serving-raw.jsonl": "04bdf352557d5d47e1e1c65946a3c855dd16d8696c0a76ccdfd2b70a3384445f",
+        "baseline-serving-summary.json": "836592173ebc35087a85c83647c6bebea1db95750b5bc191a215599d5089b152",
+        "baseline-short-c1-r0-inputs.json": "6ec0ae8404f8ee1a516c52a60db0e24a8a8c4b43e63131b3de63137c339bcb7c",
+        "baseline-short-c1-r1-inputs.json": "6f05b5f18141fcd90935d4d0c4ba086218e4dfdeb8aefe3dd2a56bafc3192043",
+        "baseline-short-c1-r2-inputs.json": "a865a6f330a41b2eb101f80ab1d47db15dcc9007320e5bf3799e461f7b05e314",
+        "baseline-short-c16-r0-inputs.json": "452fc08b44dab2eb64965f87890b0edf82a2e120f3807e093ce5d3ec158cb2e1",
+        "baseline-short-c16-r1-inputs.json": "3239f4c9966f0474c7f281f6dd439733159dd0ca751339197610b564e7112e36",
+        "baseline-short-c16-r2-inputs.json": "b081f496cb68da19140899c376998c1be81fdaf4ac4bcb69338db15d7db1fdfd",
+        "baseline-short-c4-r0-inputs.json": "eb4f630b731eaefb6ba2f6b96bcf23622f51abd6c7738d4f29f82857f17d4b22",
+        "baseline-short-c4-r1-inputs.json": "0a3720c589ed3665839e2befb1bbe3c9ec13b18982db755479efc6b24a7fc053",
+        "baseline-short-c4-r2-inputs.json": "95137f05c61452ceb0390c287bfa3f314bfbd6bd4b5c6e04992dec5cb7dd7103",
+        "baseline-short-c8-r0-inputs.json": "df6a6fe438ef2b87a7db374e988879b4748543f3a5e5eb60be7cd4d9021c4bd5",
+        "baseline-short-c8-r1-inputs.json": "a494206718f04ffbd7dedd0b3af64c42513fb935644e532195938862f9c4516f",
+        "baseline-short-c8-r2-inputs.json": "2a10e69e6a3ae3c78d37bd531ee8310faaa64f8b0809f8a5f32a3e4f05714d46",
+        "benchmark-manifest.json": "b41235e2b805f8620616794994d20bc98b2384c70b9f0338487e557c4525675e",
+        "declared-info.json": "2be071c5fdb75e821461417177e6982c6fa6a652eacbfd8a09231c03a1f52f15",
+        "optimized-long-c1-r0-inputs.json": "3ab54ebd6544ca8ba60b6c22ba448a2db8ba4dfc6430203390dfe717f26cc908",
+        "optimized-long-c1-r1-inputs.json": "7efcda2354fe2753579c00ba19d678677dfea91796ae22659dad1c1701e7c88b",
+        "optimized-long-c1-r2-inputs.json": "44a325a01db8ecdc936ae0f8dac177093a616763c87463ed0f319923a1b47c5d",
+        "optimized-long-c16-r0-inputs.json": "09e71d37ed0fcd33ef9344a0a5f8d0ca601b2455bbd382c2454172b61d467c21",
+        "optimized-long-c16-r1-inputs.json": "2bb5bb425ea163d6292294b7834b64164c76b00c12d37640654696fd2607ad2b",
+        "optimized-long-c16-r2-inputs.json": "20ed11aa73dd73c5a6bb7f16b00993d7816bcfa9910bea2e729f46a18f620baf",
+        "optimized-long-c4-r0-inputs.json": "90e34f575c3e7eb4df86bd149acafcfdc69d30a8cc02473a58495fda0729206a",
+        "optimized-long-c4-r1-inputs.json": "22d46e739154fbb2e824887fc8f49b8879fac9af9b26e6faf27ef9f4c96b36e1",
+        "optimized-long-c4-r2-inputs.json": "70c167a0c48826aeb87b7645c424f906f618df2524f931ada98e6397fec78a73",
+        "optimized-long-c8-r0-inputs.json": "5c9f6a27b154113dbf63dbf0947fc13152a569dffaaa52db3c93136978b9a8b0",
+        "optimized-long-c8-r1-inputs.json": "0af66b9d10089c8955b0bc0aefb4b9e169000409455e3480faba757a3867c4a6",
+        "optimized-long-c8-r2-inputs.json": "8befd4f015d6215468b6b279f51a5600fd6f34d2fa276b3bbed389e4c26c263b",
+        "optimized-serving-raw.jsonl": "1687bf697fe0cfdbab12e7bd2e0d571a7dc773f4b8c060e0d3ff3a373aa0a6e1",
+        "optimized-serving-summary.json": "8a911f67bfb2f0968eae1395e39f9180c8f1f3faa8305efd2f7e83e6cdaa0b00",
+        "optimized-short-c1-r0-inputs.json": "6ec0ae8404f8ee1a516c52a60db0e24a8a8c4b43e63131b3de63137c339bcb7c",
+        "optimized-short-c1-r1-inputs.json": "6f05b5f18141fcd90935d4d0c4ba086218e4dfdeb8aefe3dd2a56bafc3192043",
+        "optimized-short-c1-r2-inputs.json": "a865a6f330a41b2eb101f80ab1d47db15dcc9007320e5bf3799e461f7b05e314",
+        "optimized-short-c16-r0-inputs.json": "452fc08b44dab2eb64965f87890b0edf82a2e120f3807e093ce5d3ec158cb2e1",
+        "optimized-short-c16-r1-inputs.json": "3239f4c9966f0474c7f281f6dd439733159dd0ca751339197610b564e7112e36",
+        "optimized-short-c16-r2-inputs.json": "b081f496cb68da19140899c376998c1be81fdaf4ac4bcb69338db15d7db1fdfd",
+        "optimized-short-c4-r0-inputs.json": "eb4f630b731eaefb6ba2f6b96bcf23622f51abd6c7738d4f29f82857f17d4b22",
+        "optimized-short-c4-r1-inputs.json": "0a3720c589ed3665839e2befb1bbe3c9ec13b18982db755479efc6b24a7fc053",
+        "optimized-short-c4-r2-inputs.json": "95137f05c61452ceb0390c287bfa3f314bfbd6bd4b5c6e04992dec5cb7dd7103",
+        "optimized-short-c8-r0-inputs.json": "df6a6fe438ef2b87a7db374e988879b4748543f3a5e5eb60be7cd4d9021c4bd5",
+        "optimized-short-c8-r1-inputs.json": "a494206718f04ffbd7dedd0b3af64c42513fb935644e532195938862f9c4516f",
+        "optimized-short-c8-r2-inputs.json": "2a10e69e6a3ae3c78d37bd531ee8310faaa64f8b0809f8a5f32a3e4f05714d46",
+        "qualification/inputs.json": "c6760a165dc7bda7d8ef8bb790851f963c49e65cfbb216ee22540f5e39778ebc",
+        "qualification/raw.jsonl": "41597f453681a367fa65074963a927ea2d0684a4a75c29d98d3cbe474e507da6",
+        "qualification/report.json": "bf6fd345cf8e65b2f50c42d73a5367d12f8532be3244c6964df536dd0a337934",
+        "report.json": "5c3e91551fd6e08b165811085d830ab823685a4ebb2489428544215a579e07ca",
+        "run-context.json": "8e5357a37a933580a0f8b03d74de7c7b03ae2cafa171d7e3dc9a0ced054cbc28"
+      },
+      "qualification": {
+        "input_sha256": "c6760a165dc7bda7d8ef8bb790851f963c49e65cfbb216ee22540f5e39778ebc",
+        "complete": true,
+        "completed": 64,
+        "correct": 64
+      },
+      "kind": "calibration_not_confirmation",
+      "methodology_version": "capacity-negative-control/3",
+      "independent_confirmation": {
+        "run_id": "d666d097-ec0c-430f-8245-bc473e67a913",
+        "instance_id": "c1653d36-ef8a-45a4-96cb-76ffffcd537a",
+        "provider": "daytona",
+        "seed": 5787157838003875303,
+        "seed_decimal": "5787157838003875303",
+        "commit_sha": "9961c0503c2eb3fa702794ef9281dd88f96d9456",
+        "hardware": "NVIDIA GeForce RTX 4090, GPU-215cc1de-c4cd-820d-285e-b95a1b83a293, 570.195.03, 23028 MiB",
+        "files_sha256": {
+          "baseline-long-c1-r0-inputs.json": "1eeb0b909278b2b32850d26ef5f1f4627fe24e25a50aa4aa62083cf980d82938",
+          "baseline-long-c1-r1-inputs.json": "0ac842178f8e02fec4aab8e419fd1e8cf91df3255586702585b06264906e3f39",
+          "baseline-long-c1-r2-inputs.json": "9fdc280319db40c6699cf2d8deb1507bdb827279bf6c8f8cf5d90637ecebf955",
+          "baseline-long-c16-r0-inputs.json": "7fafe101074b5c891bf90b36b53f975aac327f06f5a0fb802c1c0f9b3950cde3",
+          "baseline-long-c16-r1-inputs.json": "3b6beea46e9e726904c42475ce95220f66b9255c1cc05ea2e94ecc40d95a380e",
+          "baseline-long-c16-r2-inputs.json": "ffff9d58c2e90d777bdbc1a0b3c329657e871596590647ef9d8fbe98a899eeaa",
+          "baseline-long-c4-r0-inputs.json": "1bcbc39377b72d90f2456542be666347f02d50ad6647fdaa3643a98542f51b7f",
+          "baseline-long-c4-r1-inputs.json": "631166f142c21187f7f77dc4741f3f82b32c0a4463e4f2917d40f8860ffcf207",
+          "baseline-long-c4-r2-inputs.json": "d16390df219871944740edbeb52b31b1a68ca32609121c8440cccac0eb6aa521",
+          "baseline-long-c8-r0-inputs.json": "f0417ad8be3fad586bb778f597193ba724fed6e3a1ff2ca347a203c3e679d7e7",
+          "baseline-long-c8-r1-inputs.json": "6eab8e3f359849f9dbd3c666784232320b657501e5c31354e1615edaf11169a0",
+          "baseline-long-c8-r2-inputs.json": "cbbb577ff430605497d0c0decc168c8e4348778a1e926cb9c95ca5ae8cdbc481",
+          "baseline-serving-raw.jsonl": "156dd99e039f21068722967716118ceb168d3bf1345d16a967b5e35df1a03a6e",
+          "baseline-serving-summary.json": "564a9a681f370c05ae04f920cccab014ff232212f7ec4231558d862fcf100a36",
+          "baseline-short-c1-r0-inputs.json": "949c8ae8c4de5a8c9918e1c4cb1b8195e974ad72eadc4e5b22d65ea38aa02c19",
+          "baseline-short-c1-r1-inputs.json": "de69386c77814ef18bbf24be179257d12bae54c17f4b69bf2042e186e844a560",
+          "baseline-short-c1-r2-inputs.json": "59e51a3309ef55f90f26a10ef9e66a3c8ce2e52e1e2620c9e14fb11745dc9e84",
+          "baseline-short-c16-r0-inputs.json": "3604df80f439c5d637039c6efdcff87d4fe9adc1fe12ea41b6670ff846ed49e6",
+          "baseline-short-c16-r1-inputs.json": "89e8f7814e05d12dce5b708e85442f78c50d20040d8044cf047b8d8053701106",
+          "baseline-short-c16-r2-inputs.json": "0f43f3bbf71331d058caf75b170feb2a0ce5a3735764332367c99a57b4d3dc5e",
+          "baseline-short-c4-r0-inputs.json": "3a5d507e1112dc43912f775077fe70432633aa7ef474b2283bcc1942502d19d0",
+          "baseline-short-c4-r1-inputs.json": "aecf44e234b11a68c50a3821b65d21213365f92f41feb22304d644e788e42d46",
+          "baseline-short-c4-r2-inputs.json": "315c2037847d27c20706324da38fa414e874896e64b637ad630500c63c2b917c",
+          "baseline-short-c8-r0-inputs.json": "707134d05f1ff54570e4927c987e2a538be3cebf5fd21b48b82020284889ad09",
+          "baseline-short-c8-r1-inputs.json": "0e044fbfc927e1a14fc7aaa1ad8950d19dd6178c2058b03c98b98daa565658bb",
+          "baseline-short-c8-r2-inputs.json": "19304e828af5fef67c980ed523bd0381cbb89e266233d4164a585e2ba593c1de",
+          "benchmark-manifest.json": "2978da2b8e28b6666cf34fac15095237d31e4669fd50015eb03b9e7d108f52ac",
+          "declared-info.json": "2be071c5fdb75e821461417177e6982c6fa6a652eacbfd8a09231c03a1f52f15",
+          "optimized-long-c1-r0-inputs.json": "1eeb0b909278b2b32850d26ef5f1f4627fe24e25a50aa4aa62083cf980d82938",
+          "optimized-long-c1-r1-inputs.json": "0ac842178f8e02fec4aab8e419fd1e8cf91df3255586702585b06264906e3f39",
+          "optimized-long-c1-r2-inputs.json": "9fdc280319db40c6699cf2d8deb1507bdb827279bf6c8f8cf5d90637ecebf955",
+          "optimized-long-c16-r0-inputs.json": "7fafe101074b5c891bf90b36b53f975aac327f06f5a0fb802c1c0f9b3950cde3",
+          "optimized-long-c16-r1-inputs.json": "3b6beea46e9e726904c42475ce95220f66b9255c1cc05ea2e94ecc40d95a380e",
+          "optimized-long-c16-r2-inputs.json": "ffff9d58c2e90d777bdbc1a0b3c329657e871596590647ef9d8fbe98a899eeaa",
+          "optimized-long-c4-r0-inputs.json": "1bcbc39377b72d90f2456542be666347f02d50ad6647fdaa3643a98542f51b7f",
+          "optimized-long-c4-r1-inputs.json": "631166f142c21187f7f77dc4741f3f82b32c0a4463e4f2917d40f8860ffcf207",
+          "optimized-long-c4-r2-inputs.json": "d16390df219871944740edbeb52b31b1a68ca32609121c8440cccac0eb6aa521",
+          "optimized-long-c8-r0-inputs.json": "f0417ad8be3fad586bb778f597193ba724fed6e3a1ff2ca347a203c3e679d7e7",
+          "optimized-long-c8-r1-inputs.json": "6eab8e3f359849f9dbd3c666784232320b657501e5c31354e1615edaf11169a0",
+          "optimized-long-c8-r2-inputs.json": "cbbb577ff430605497d0c0decc168c8e4348778a1e926cb9c95ca5ae8cdbc481",
+          "optimized-serving-raw.jsonl": "e732ed0615f04ab66da20652dd1e3d6887de6ccd6186a83103e698c4bea74c76",
+          "optimized-serving-summary.json": "0ae4a2fdb67a7b2190e302d14113749f7474a9600772204c44b93c7ae9522a64",
+          "optimized-short-c1-r0-inputs.json": "949c8ae8c4de5a8c9918e1c4cb1b8195e974ad72eadc4e5b22d65ea38aa02c19",
+          "optimized-short-c1-r1-inputs.json": "de69386c77814ef18bbf24be179257d12bae54c17f4b69bf2042e186e844a560",
+          "optimized-short-c1-r2-inputs.json": "59e51a3309ef55f90f26a10ef9e66a3c8ce2e52e1e2620c9e14fb11745dc9e84",
+          "optimized-short-c16-r0-inputs.json": "3604df80f439c5d637039c6efdcff87d4fe9adc1fe12ea41b6670ff846ed49e6",
+          "optimized-short-c16-r1-inputs.json": "89e8f7814e05d12dce5b708e85442f78c50d20040d8044cf047b8d8053701106",
+          "optimized-short-c16-r2-inputs.json": "0f43f3bbf71331d058caf75b170feb2a0ce5a3735764332367c99a57b4d3dc5e",
+          "optimized-short-c4-r0-inputs.json": "3a5d507e1112dc43912f775077fe70432633aa7ef474b2283bcc1942502d19d0",
+          "optimized-short-c4-r1-inputs.json": "aecf44e234b11a68c50a3821b65d21213365f92f41feb22304d644e788e42d46",
+          "optimized-short-c4-r2-inputs.json": "315c2037847d27c20706324da38fa414e874896e64b637ad630500c63c2b917c",
+          "optimized-short-c8-r0-inputs.json": "707134d05f1ff54570e4927c987e2a538be3cebf5fd21b48b82020284889ad09",
+          "optimized-short-c8-r1-inputs.json": "0e044fbfc927e1a14fc7aaa1ad8950d19dd6178c2058b03c98b98daa565658bb",
+          "optimized-short-c8-r2-inputs.json": "19304e828af5fef67c980ed523bd0381cbb89e266233d4164a585e2ba593c1de",
+          "report.json": "5acac82e9f7cfe7e5fbe8b97db52b7fc016f2caab5a8462603608c19c7331115",
+          "run-context.json": "b332cd422a722a14daed17472c149fa5d72ff49fff9fac805c0699a80c1e46a2"
+        },
+        "kind": "independent_confirmation",
+        "passed": true,
+        "calibration_run_id": "5e2971c9-b435-4e24-819d-c9eac79e7b9d",
+        "calibration_instance_id": "75f93d84-928b-4b9f-bc1a-9d4a47f14a22",
+        "core_contract_sha256": "6ff612ca8628555c5d179c0b2a5599d3e5b38b09cd80fa531e186ce4ed181c07",
+        "evaluation": {
+          "points": 30.0,
+          "max": 30,
+          "passed": true,
+          "status": "passed",
+          "provisional": true,
+          "core_contract_sha256": "6ff612ca8628555c5d179c0b2a5599d3e5b38b09cd80fa531e186ce4ed181c07",
+          "acceptance_version": "daytona-4090-v5-candidate-5e2971c9",
+          "hardware_matches": true,
+          "checks": [
+            {
+              "workload": "short",
+              "concurrency": 8,
+              "passed": true,
+              "metrics": [
+                {
+                  "metric": "output_tokens_per_second",
+                  "actual": 94.67922131867411,
+                  "threshold": 71,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "ttft_p95_ms",
+                  "actual": 1179.0085518732667,
+                  "threshold": 1780,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "tpot_p95_ms",
+                  "actual": 22.628470406155376,
+                  "threshold": 35,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "e2e_p95_ms",
+                  "actual": 1533.6310318671167,
+                  "threshold": 2350,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_goodput",
+                  "actual": 5.235717307945111,
+                  "threshold": 3.67,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "slo_attainment",
+                  "actual": 1.0,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "success_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                }
+              ]
+            },
+            {
+              "workload": "short",
+              "concurrency": 16,
+              "passed": true,
+              "metrics": [
+                {
+                  "metric": "output_tokens_per_second",
+                  "actual": 167.59504101841245,
+                  "threshold": 128,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "ttft_p95_ms",
+                  "actual": 1356.479240115732,
+                  "threshold": 1830,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "tpot_p95_ms",
+                  "actual": 27.540741241810952,
+                  "threshold": 40,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "e2e_p95_ms",
+                  "actual": 1735.914362128824,
+                  "threshold": 2600,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_goodput",
+                  "actual": 9.236006852909066,
+                  "threshold": 6.63,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "slo_attainment",
+                  "actual": 1.0,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "success_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                }
+              ]
+            },
+            {
+              "workload": "long",
+              "concurrency": 8,
+              "passed": true,
+              "metrics": [
+                {
+                  "metric": "output_tokens_per_second",
+                  "actual": 341.0004366434871,
+                  "threshold": 254,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "ttft_p95_ms",
+                  "actual": 1240.0611639022827,
+                  "threshold": 1870,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "tpot_p95_ms",
+                  "actual": 19.07981983591694,
+                  "threshold": 29,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "e2e_p95_ms",
+                  "actual": 5904.0697808377445,
+                  "threshold": 8900,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_goodput",
+                  "actual": 1.3619588083614063,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "slo_attainment",
+                  "actual": 1.0,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "success_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                }
+              ]
+            },
+            {
+              "workload": "long",
+              "concurrency": 16,
+              "passed": true,
+              "metrics": [
+                {
+                  "metric": "output_tokens_per_second",
+                  "actual": 647.1032131764875,
+                  "threshold": 485,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "ttft_p95_ms",
+                  "actual": 1361.9224452413619,
+                  "threshold": 2070,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "tpot_p95_ms",
+                  "actual": 19.939253895333216,
+                  "threshold": 30,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "e2e_p95_ms",
+                  "actual": 6198.674364946783,
+                  "threshold": 9350,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_goodput",
+                  "actual": 2.5834612187034356,
+                  "threshold": 1.81,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "slo_attainment",
+                  "actual": 1.0,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "success_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                }
+              ]
+            }
+          ]
+        },
+        "baseline_against_candidate": {
+          "points": 0.0,
+          "max": 30,
+          "passed": false,
+          "status": "failed",
+          "provisional": true,
+          "core_contract_sha256": "6ff612ca8628555c5d179c0b2a5599d3e5b38b09cd80fa531e186ce4ed181c07",
+          "acceptance_version": "daytona-4090-v5-candidate-5e2971c9",
+          "hardware_matches": true,
+          "checks": [
+            {
+              "workload": "short",
+              "concurrency": 8,
+              "passed": false,
+              "metrics": [
+                {
+                  "metric": "output_tokens_per_second",
+                  "actual": 40.298568092172246,
+                  "threshold": 71,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "ttft_p95_ms",
+                  "actual": 3731.9175540469587,
+                  "threshold": 1780,
+                  "comparison": "<=",
+                  "passed": false
+                },
+                {
+                  "metric": "tpot_p95_ms",
+                  "actual": 17.768932894493144,
+                  "threshold": 35,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "e2e_p95_ms",
+                  "actual": 4057.4226630851626,
+                  "threshold": 2350,
+                  "comparison": "<=",
+                  "passed": false
+                },
+                {
+                  "metric": "quality_goodput",
+                  "actual": 0.2785615305910524,
+                  "threshold": 3.67,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "slo_attainment",
+                  "actual": 0.125,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "success_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                }
+              ]
+            },
+            {
+              "workload": "short",
+              "concurrency": 16,
+              "passed": false,
+              "metrics": [
+                {
+                  "metric": "output_tokens_per_second",
+                  "actual": 40.15403592780704,
+                  "threshold": 128,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "ttft_p95_ms",
+                  "actual": 6850.884201005101,
+                  "threshold": 1830,
+                  "comparison": "<=",
+                  "passed": false
+                },
+                {
+                  "metric": "tpot_p95_ms",
+                  "actual": 17.89102717028821,
+                  "threshold": 40,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "e2e_p95_ms",
+                  "actual": 7159.581030253321,
+                  "threshold": 2600,
+                  "comparison": "<=",
+                  "passed": false
+                },
+                {
+                  "metric": "quality_goodput",
+                  "actual": 0.2766064472638831,
+                  "threshold": 6.63,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "slo_attainment",
+                  "actual": 0.125,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "success_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                },
+                {
+                  "metric": "quality_rate",
+                  "actual": 1.0,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": true
+                }
+              ]
+            },
+            {
+              "workload": "long",
+              "concurrency": 8,
+              "passed": false,
+              "metrics": [
+                {
+                  "metric": "output_tokens_per_second",
+                  "actual": 48.37071099776769,
+                  "threshold": 254,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "ttft_p95_ms",
+                  "actual": 25840.754982549697,
+                  "threshold": 1870,
+                  "comparison": "<=",
+                  "passed": false
+                },
+                {
+                  "metric": "tpot_p95_ms",
+                  "actual": 17.953211778774858,
+                  "threshold": 29,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "e2e_p95_ms",
+                  "actual": 30308.875638991594,
+                  "threshold": 8900,
+                  "comparison": "<=",
+                  "passed": false
+                },
+                {
+                  "metric": "quality_goodput",
+                  "actual": 0.01609317211858745,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "slo_attainment",
+                  "actual": 0.0625,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "success_rate",
+                  "actual": 0.75,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "quality_rate",
+                  "actual": 0.75,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": false
+                }
+              ]
+            },
+            {
+              "workload": "long",
+              "concurrency": 16,
+              "passed": false,
+              "metrics": [
+                {
+                  "metric": "output_tokens_per_second",
+                  "actual": 48.14333871864726,
+                  "threshold": 485,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "ttft_p95_ms",
+                  "actual": 24069.338080007583,
+                  "threshold": 2070,
+                  "comparison": "<=",
+                  "passed": false
+                },
+                {
+                  "metric": "tpot_p95_ms",
+                  "actual": 17.93607121761588,
+                  "threshold": 30,
+                  "comparison": "<=",
+                  "passed": true
+                },
+                {
+                  "metric": "e2e_p95_ms",
+                  "actual": 28550.830972380936,
+                  "threshold": 9350,
+                  "comparison": "<=",
+                  "passed": false
+                },
+                {
+                  "metric": "quality_goodput",
+                  "actual": 0.03205282204969857,
+                  "threshold": 1.81,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "slo_attainment",
+                  "actual": 0.0625,
+                  "threshold": 0.95,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "success_rate",
+                  "actual": 0.375,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": false
+                },
+                {
+                  "metric": "quality_rate",
+                  "actual": 0.375,
+                  "threshold": 0.99,
+                  "comparison": ">=",
+                  "passed": false
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "latency_stability": [
+        {
+          "profile": "baseline",
+          "workload": "short",
+          "concurrency": 1,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1209.975996054709,
+            1200.977171305567,
+            1238.5853021405637
+          ],
+          "max_to_min_with_floor": 1.031314609247829
+        },
+        {
+          "profile": "baseline",
+          "workload": "short",
+          "concurrency": 1,
+          "metric": "tpot_ms",
+          "round_p95": [
+            17.647846213852365,
+            17.683677758802386,
+            17.99890853683738
+          ],
+          "max_to_min_with_floor": 1.0198926440502103
+        },
+        {
+          "profile": "baseline",
+          "workload": "short",
+          "concurrency": 1,
+          "metric": "e2e_ms",
+          "round_p95": [
+            1533.9457499794662,
+            1525.604491122067,
+            1564.9568713270128
+          ],
+          "max_to_min_with_floor": 1.025794614812652
+        },
+        {
+          "profile": "baseline",
+          "workload": "long",
+          "concurrency": 1,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1246.0967102088034,
+            1248.9486071281135,
+            1341.4260768331587
+          ],
+          "max_to_min_with_floor": 1.0765023820730426
+        },
+        {
+          "profile": "baseline",
+          "workload": "long",
+          "concurrency": 1,
+          "metric": "tpot_ms",
+          "round_p95": [
+            18.09350104491797,
+            17.826719118645823,
+            17.820533772930503
+          ],
+          "max_to_min_with_floor": 1.015317569914887
+        },
+        {
+          "profile": "baseline",
+          "workload": "long",
+          "concurrency": 1,
+          "metric": "e2e_ms",
+          "round_p95": [
+            5746.571253985167,
+            5693.243792280555,
+            5823.454768862575
+          ],
+          "max_to_min_with_floor": 1.0228711401325503
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 1,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1159.6363517455757,
+            1170.7799178548157,
+            1166.193242650479
+          ],
+          "max_to_min_with_floor": 1.0096095349998868
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 1,
+          "metric": "tpot_ms",
+          "round_p95": [
+            17.70984334871173,
+            17.531527335652047,
+            17.578865838004276
+          ],
+          "max_to_min_with_floor": 1.0101711624803538
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 1,
+          "metric": "e2e_ms",
+          "round_p95": [
+            1500.1824391074479,
+            1494.4938058033586,
+            1490.9139717929065
+          ],
+          "max_to_min_with_floor": 1.0062166345543033
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 4,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1210.2268459275365,
+            1370.5194871872663,
+            1272.5246651098132
+          ],
+          "max_to_min_with_floor": 1.1324484263418229
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 4,
+          "metric": "tpot_ms",
+          "round_p95": [
+            22.064814590575065,
+            21.874233998139115,
+            22.01761133619584
+          ],
+          "max_to_min_with_floor": 1.0087125607439402
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 4,
+          "metric": "e2e_ms",
+          "round_p95": [
+            1568.2550389319658,
+            1708.910082001239,
+            1618.9020001329482
+          ],
+          "max_to_min_with_floor": 1.0896888832348748
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 8,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1165.1500803418458,
+            1200.8961490355432,
+            1184.4945861957967
+          ],
+          "max_to_min_with_floor": 1.0306793685180966
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 8,
+          "metric": "tpot_ms",
+          "round_p95": [
+            23.29687464653569,
+            24.61209175560404,
+            20.580981832204593
+          ],
+          "max_to_min_with_floor": 1.1958657733758684
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 8,
+          "metric": "e2e_ms",
+          "round_p95": [
+            1535.6797743588686,
+            1547.3901606164873,
+            1539.5712899044156
+          ],
+          "max_to_min_with_floor": 1.0076255391606677
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 16,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1217.6743098534644,
+            1263.9222810976207,
+            1222.4076017737389
+          ],
+          "max_to_min_with_floor": 1.0379805756514004
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 16,
+          "metric": "tpot_ms",
+          "round_p95": [
+            27.522685033652714,
+            27.493343766157825,
+            23.72054648859536
+          ],
+          "max_to_min_with_floor": 1.1602888258449437
+        },
+        {
+          "profile": "optimized",
+          "workload": "short",
+          "concurrency": 16,
+          "metric": "e2e_ms",
+          "round_p95": [
+            1729.2239051312208,
+            1688.552072737366,
+            1627.4291980080307
+          ],
+          "max_to_min_with_floor": 1.0625493921626739
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 1,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1176.7366430722177,
+            1192.9079312831163,
+            1208.9895159006119
+          ],
+          "max_to_min_with_floor": 1.027408743509668
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 1,
+          "metric": "tpot_ms",
+          "round_p95": [
+            17.63298516605227,
+            17.67307851070249,
+            17.599978931248188
+          ],
+          "max_to_min_with_floor": 1.0041533901682413
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 1,
+          "metric": "e2e_ms",
+          "round_p95": [
+            5618.074429221451,
+            5610.658613033593,
+            5631.881603971124
+          ],
+          "max_to_min_with_floor": 1.003782620259274
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 4,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1204.6801140531898,
+            1190.107787027955,
+            1231.4166422002017
+          ],
+          "max_to_min_with_floor": 1.034710179718601
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 4,
+          "metric": "tpot_ms",
+          "round_p95": [
+            18.914368370941197,
+            18.90942161555896,
+            18.913538112039014
+          ],
+          "max_to_min_with_floor": 1.0002616026805478
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 4,
+          "metric": "e2e_ms",
+          "round_p95": [
+            5886.6950129158795,
+            5885.265077929944,
+            5952.941016759723
+          ],
+          "max_to_min_with_floor": 1.011499216761462
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 8,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1247.3466438241303,
+            1261.6847660392523,
+            1244.3086630664766
+          ],
+          "max_to_min_with_floor": 1.0139644635519567
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 8,
+          "metric": "tpot_ms",
+          "round_p95": [
+            19.16697267891772,
+            19.174157879334018,
+            19.04362162026847
+          ],
+          "max_to_min_with_floor": 1.0068545921394811
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 8,
+          "metric": "e2e_ms",
+          "round_p95": [
+            5908.239157404751,
+            5912.87460597232,
+            5944.352354854345
+          ],
+          "max_to_min_with_floor": 1.0061123452330691
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 16,
+          "metric": "ttft_ms",
+          "round_p95": [
+            1386.1662028357387,
+            1370.1998507604003,
+            1391.5154258720577
+          ],
+          "max_to_min_with_floor": 1.0155565446163406
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 16,
+          "metric": "tpot_ms",
+          "round_p95": [
+            19.8146818028499,
+            19.749750689257898,
+            19.737973367795348
+          ],
+          "max_to_min_with_floor": 1.0038863379550258
+        },
+        {
+          "profile": "optimized",
+          "workload": "long",
+          "concurrency": 16,
+          "metric": "e2e_ms",
+          "round_p95": [
+            6171.197511721402,
+            6155.493889003992,
+            6204.95967566967
+          ],
+          "max_to_min_with_floor": 1.008036038627874
+        }
+      ],
+      "baseline_capacity": [
+        {
+          "workload": "short",
+          "concurrency": 4,
+          "attempted": 48,
+          "successful_correct": 48,
+          "capacity_failures": 0,
+          "success_rate": 1.0,
+          "quality_rate_all_attempts": 1.0,
+          "error_counts": {}
+        },
+        {
+          "workload": "short",
+          "concurrency": 8,
+          "attempted": 48,
+          "successful_correct": 48,
+          "capacity_failures": 0,
+          "success_rate": 1.0,
+          "quality_rate_all_attempts": 1.0,
+          "error_counts": {}
+        },
+        {
+          "workload": "short",
+          "concurrency": 16,
+          "attempted": 48,
+          "successful_correct": 48,
+          "capacity_failures": 0,
+          "success_rate": 1.0,
+          "quality_rate_all_attempts": 1.0,
+          "error_counts": {}
+        },
+        {
+          "workload": "long",
+          "concurrency": 4,
+          "attempted": 48,
+          "successful_correct": 48,
+          "capacity_failures": 0,
+          "success_rate": 1.0,
+          "quality_rate_all_attempts": 1.0,
+          "error_counts": {}
+        },
+        {
+          "workload": "long",
+          "concurrency": 8,
+          "attempted": 48,
+          "successful_correct": 36,
+          "capacity_failures": 12,
+          "success_rate": 0.75,
+          "quality_rate_all_attempts": 0.75,
+          "error_counts": {
+            "sse_request_timeout": 12
+          }
+        },
+        {
+          "workload": "long",
+          "concurrency": 16,
+          "attempted": 48,
+          "successful_correct": 18,
+          "capacity_failures": 30,
+          "success_rate": 0.375,
+          "quality_rate_all_attempts": 0.375,
+          "error_counts": {
+            "sse_request_timeout": 30
+          }
+        }
+      ],
+      "baseline_policy": {
+        "concurrency1": "all requests correct and successful",
+        "higher_concurrency": "complete matrix; >=1 correct success per repeat; failures only HTTP429/504, full-client deadline, or explicit SSE request_timeout/upstream_timeout",
+        "denominator": "all attempts, including failures",
+        "latency_percentiles": "conditional on successful correct requests; never interpreted without success rate"
+      },
+      "threshold_policy": {
+        "throughput_fraction": 0.75,
+        "latency_multiplier": 1.5,
+        "goodput_fraction": 0.7,
+        "slo_attainment_min": 0.95,
+        "success_rate_min": 0.99,
+        "quality_rate_min": 0.99
+      },
+      "limitations": [
+        "Evidence covers one calibration allocation and one independent confirmation allocation only; this is not a broader fleet or long-term variability estimate.",
+        "Optimized and healthy baseline concurrency1 latency stability checked; overloaded baseline is a negative control; per-round throughput windows unavailable.",
+        "Model identity/configuration is runtime-declared; tokenizer and measurement are controller-derived.",
+        "Closed-loop structured extraction with shared padding; prefix reuse is allowed. Not general LLM throughput."
+      ],
+      "baseline_against_candidate": {
+        "points": 0.0,
+        "max": 30,
+        "passed": false,
+        "status": "failed",
+        "provisional": true,
+        "core_contract_sha256": "6ff612ca8628555c5d179c0b2a5599d3e5b38b09cd80fa531e186ce4ed181c07",
+        "acceptance_version": "daytona-4090-v5-candidate-5e2971c9",
+        "hardware_matches": true,
+        "checks": [
+          {
+            "workload": "short",
+            "concurrency": 8,
+            "passed": false,
+            "metrics": [
+              {
+                "metric": "output_tokens_per_second",
+                "actual": 40.29295001387156,
+                "threshold": 71,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "ttft_p95_ms",
+                "actual": 3781.436702236533,
+                "threshold": 1780,
+                "comparison": "<=",
+                "passed": false
+              },
+              {
+                "metric": "tpot_p95_ms",
+                "actual": 17.765778220362133,
+                "threshold": 35,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "e2e_p95_ms",
+                "actual": 4108.1828800961375,
+                "threshold": 2350,
+                "comparison": "<=",
+                "passed": false
+              },
+              {
+                "metric": "quality_goodput",
+                "actual": 0.2775633755260957,
+                "threshold": 3.67,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "slo_attainment",
+                "actual": 0.125,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "success_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "quality_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              }
+            ]
+          },
+          {
+            "workload": "short",
+            "concurrency": 16,
+            "passed": false,
+            "metrics": [
+              {
+                "metric": "output_tokens_per_second",
+                "actual": 40.26425217798612,
+                "threshold": 128,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "ttft_p95_ms",
+                "actual": 6799.380319193006,
+                "threshold": 1830,
+                "comparison": "<=",
+                "passed": false
+              },
+              {
+                "metric": "tpot_p95_ms",
+                "actual": 17.73794652784572,
+                "threshold": 40,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "e2e_p95_ms",
+                "actual": 7143.308951053768,
+                "threshold": 2600,
+                "comparison": "<=",
+                "passed": false
+              },
+              {
+                "metric": "quality_goodput",
+                "actual": 0.3235933010859964,
+                "threshold": 6.63,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "slo_attainment",
+                "actual": 0.14583333333333334,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "success_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "quality_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              }
+            ]
+          },
+          {
+            "workload": "long",
+            "concurrency": 8,
+            "passed": false,
+            "metrics": [
+              {
+                "metric": "output_tokens_per_second",
+                "actual": 48.29592159691032,
+                "threshold": 254,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "ttft_p95_ms",
+                "actual": 25757.99888232723,
+                "threshold": 1870,
+                "comparison": "<=",
+                "passed": false
+              },
+              {
+                "metric": "tpot_p95_ms",
+                "actual": 17.822583134357746,
+                "threshold": 29,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "e2e_p95_ms",
+                "actual": 30206.458744127303,
+                "threshold": 8900,
+                "comparison": "<=",
+                "passed": false
+              },
+              {
+                "metric": "quality_goodput",
+                "actual": 0.016089701809076176,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "slo_attainment",
+                "actual": 0.0625,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "success_rate",
+                "actual": 0.75,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "quality_rate",
+                "actual": 0.75,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": false
+              }
+            ]
+          },
+          {
+            "workload": "long",
+            "concurrency": 16,
+            "passed": false,
+            "metrics": [
+              {
+                "metric": "output_tokens_per_second",
+                "actual": 48.02223581652694,
+                "threshold": 485,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "ttft_p95_ms",
+                "actual": 23996.18312716484,
+                "threshold": 2070,
+                "comparison": "<=",
+                "passed": false
+              },
+              {
+                "metric": "tpot_p95_ms",
+                "actual": 17.83592568012882,
+                "threshold": 30,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "e2e_p95_ms",
+                "actual": 28423.712632153183,
+                "threshold": 9350,
+                "comparison": "<=",
+                "passed": false
+              },
+              {
+                "metric": "quality_goodput",
+                "actual": 0.03205756730075229,
+                "threshold": 1.81,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "slo_attainment",
+                "actual": 0.0625,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "success_rate",
+                "actual": 0.375,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": false
+              },
+              {
+                "metric": "quality_rate",
+                "actual": 0.375,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": false
+              }
+            ]
+          }
+        ]
+      },
+      "optimized_against_candidate": {
+        "points": 30.0,
+        "max": 30,
+        "passed": true,
+        "status": "passed",
+        "provisional": true,
+        "core_contract_sha256": "6ff612ca8628555c5d179c0b2a5599d3e5b38b09cd80fa531e186ce4ed181c07",
+        "acceptance_version": "daytona-4090-v5-candidate-5e2971c9",
+        "hardware_matches": true,
+        "checks": [
+          {
+            "workload": "short",
+            "concurrency": 8,
+            "passed": true,
+            "metrics": [
+              {
+                "metric": "output_tokens_per_second",
+                "actual": 95.26935446941515,
+                "threshold": 71,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "ttft_p95_ms",
+                "actual": 1181.8684237077832,
+                "threshold": 1780,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "tpot_p95_ms",
+                "actual": 22.970318082062636,
+                "threshold": 35,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "e2e_p95_ms",
+                "actual": 1535.8178527094424,
+                "threshold": 2350,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "quality_goodput",
+                "actual": 5.2502055275911905,
+                "threshold": 3.67,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "slo_attainment",
+                "actual": 1.0,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "success_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "quality_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              }
+            ]
+          },
+          {
+            "workload": "short",
+            "concurrency": 16,
+            "passed": true,
+            "metrics": [
+              {
+                "metric": "output_tokens_per_second",
+                "actual": 171.89435929635178,
+                "threshold": 128,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "ttft_p95_ms",
+                "actual": 1219.0448278561234,
+                "threshold": 1830,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "tpot_p95_ms",
+                "actual": 26.33593587533516,
+                "threshold": 40,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "e2e_p95_ms",
+                "actual": 1714.372111018747,
+                "threshold": 2600,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "quality_goodput",
+                "actual": 9.472938284988388,
+                "threshold": 6.63,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "slo_attainment",
+                "actual": 1.0,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "success_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "quality_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              }
+            ]
+          },
+          {
+            "workload": "long",
+            "concurrency": 8,
+            "passed": true,
+            "metrics": [
+              {
+                "metric": "output_tokens_per_second",
+                "actual": 339.879545119623,
+                "threshold": 254,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "ttft_p95_ms",
+                "actual": 1244.3086630664766,
+                "threshold": 1870,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "tpot_p95_ms",
+                "actual": 19.062383908284716,
+                "threshold": 29,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "e2e_p95_ms",
+                "actual": 5910.277646966279,
+                "threshold": 8900,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "quality_goodput",
+                "actual": 1.3584993059989927,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "slo_attainment",
+                "actual": 1.0,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "success_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "quality_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              }
+            ]
+          },
+          {
+            "workload": "long",
+            "concurrency": 16,
+            "passed": true,
+            "metrics": [
+              {
+                "metric": "output_tokens_per_second",
+                "actual": 646.7034905364254,
+                "threshold": 485,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "ttft_p95_ms",
+                "actual": 1379.5651849359274,
+                "threshold": 2070,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "tpot_p95_ms",
+                "actual": 19.737973367795348,
+                "threshold": 30,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "e2e_p95_ms",
+                "actual": 6200.515647884458,
+                "threshold": 9350,
+                "comparison": "<=",
+                "passed": true
+              },
+              {
+                "metric": "quality_goodput",
+                "actual": 2.585951978152984,
+                "threshold": 1.81,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "slo_attainment",
+                "actual": 1.0,
+                "threshold": 0.95,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "success_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              },
+              {
+                "metric": "quality_rate",
+                "actual": 1.0,
+                "threshold": 0.99,
+                "comparison": ">=",
+                "passed": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "notes": [
+      "Frozen targets passed independent fresh-allocation confirmation and are eligible for official performance scoring; missing thresholds never pass.",
+      "Timing uses trusted client clock. TTFT is time to first non-empty text event; TPOT uses independently retokenized visible text. Event gaps are not exact per-token ITL.",
+      "Per-run inputs are fresh; only shape warmup is reused. Both profiles get identical measured prompts. Cache hits are permitted and must be reported separately in cache-specific tests.",
+      "Model, hardware, dtype, exact chat-template input lengths and maximum output lengths are part of the acceptance contract. Output length is model-determined and recorded; correctness is a prerequisite for counting useful throughput.",
+      "Closed-loop structured extraction with shared padding, not general LLM throughput. Common padding prefixes may benefit RadixAttention; dedicated shared/unique prefix on/off tests remain separate evidence.",
+      "Neutral decoding is fixed: temperature=0 in requests, SGLang --sampling-defaults=openai, repetition_penalty=1, top_p=1, top_k=-1. Runtime declarations are checked for both profiles; model-inherited sampling defaults cannot be mixed into calibration.",
+      "Controller measurement v2 retains explicit request_timeout/upstream_timeout SSE errors as failed timeout rows. Missing or generic error codes remain protocol failures; historical raw rows are never reclassified.",
+      "Changes only repeated z padding to a frozen natural-language bank; original v1 extraction instructions, RNG records, strict typed answers, input lengths and output caps remain unchanged.",
+      "Causal diagnostic e32ced55: native SGLang 8/8, HF eager 6/8. HF long literal-copy controls still have numeric errors. Qualification64 was NOT run under that original both-paths-pass protocol.",
+      "Subsequent decision: HF remains a diagnostic control; validate the actual delivered SGLang service on all64 independent frozen extraction cases before the full new calibration matrix. No raw failures are removed or reclassified.",
+      "These frozen performance targets were independently confirmed on a fresh allocation using the same contract and reference commit. No performance target is inferred from the failed v4 run.",
+      "v5 preserves original RNG, strict typed answers and array order, exact512/1024 token inputs, 96/384 output caps, neutral decoding and generic json_object mode. Only long inputs gain Record1..8 numbering and an explicit instruction to preserve numbered input order without grouping/sorting by city/id/units. Short inputs are identical to v4.",
+      "The same frozen natural-language prose bank fills exact token lengths; no JSON answers are included in prompts and no output repair, order-insensitive comparison or seed filtering is allowed.",
+      "Qualification uses all64 new frozen cases from seeds2026101811..2026101814 without retries. v1-v4 original evidence remains unchanged and cannot calibrate v5."
+    ],
+    "decoding_policy": {
+      "temperature": 0,
+      "repetition_penalty": 1.0,
+      "top_p": 1.0,
+      "top_k": -1,
+      "sampling_defaults": "openai"
+    },
+    "measurement_version": "controller-sse/2",
+    "prose_bank_sha256": "84e28c0006bf3fb30049caaa505cf2bd2f3e2ea5d9f1f34a190ba2aa4936dcbf",
+    "response_format": {
+      "type": "json_object"
+    }
+  },
+  "deployment_checks": {
+    "source": "service_declared_runtime_configuration",
+    "engine_sglang": true,
+    "engine_version": "0.5.9",
+    "kv": {
+      "passed": true,
+      "baseline": 8192,
+      "optimized": 16384,
+      "requirement": "SGLang optimized max_total_tokens > positive baseline budget"
+    },
+    "prefix": {
+      "passed": true,
+      "optimized": true,
+      "requirement": "SGLang optimized prefix_cache=true"
+    },
+    "attention": {
+      "passed": true,
+      "optimized": "flashinfer",
+      "requirement": "RTX 4090 SGLang optimized attention_backend=flashinfer"
+    }
+  },
+  "notes": [
+    "自动评分最高 95 分；性能硬指标 30 分，KV/前缀/Attention 各 10 分；凭据管理15分；重建/接口/正确性/Agent各5分；人工工程解释仅 5 分。",
+    "吞吐仅计输出正确请求的可见文本 token，由控制端冻结 tokenizer 独立计数；不使用服务自报 usage 计分。",
+    "TTFT 是首个非空文本事件到达时间；TPOT 用独立 token 数估计；SSE 事件间隔不等于逐 token ITL。",
+    "固定中性解码：temperature=0，repetition_penalty=1，top_p=1，top_k=-1，sampling_defaults=openai；两种配置必须一致。",
+    "这是带共享 padding 前缀的闭环结构化抽取负载，RadixAttention 可利用前缀复用，不代表所有 LLM 请求的通用吞吐。",
+    "固定模型/版本/精度/GPU，512/1024 输入 token；并发 1/4/8/16，各 3 轮 16 请求，闭环负载。",
+    "性能指标尚未标定或确认时，30分暂不评定，不按未通过扣分；正式验收仍核对硬件、正确性、SLO和有效吞吐。",
+    "取消的资源恢复通过独立后续请求验证，abort 计数仅为服务声明的辅助证据。",
+    "服务接口、输出正确性和 Agent 验收针对最终 optimized 服务；baseline 仅用于重建与性能对照。"
+  ],
+  "performance_acceptance": {
+    "points": 22.5,
+    "max": 30,
+    "passed": false,
+    "status": "failed",
+    "provisional": false,
+    "core_contract_sha256": "6ff612ca8628555c5d179c0b2a5599d3e5b38b09cd80fa531e186ce4ed181c07",
+    "acceptance_version": "daytona-4090-v5-confirmed-5e2971c9",
+    "hardware_matches": true,
+    "checks": [
+      {
+        "workload": "short",
+        "concurrency": 8,
+        "passed": false,
+        "metrics": [
+          {
+            "metric": "output_tokens_per_second",
+            "actual": 90.99163589762634,
+            "threshold": 71,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "ttft_p95_ms",
+            "actual": 1272.7019670419395,
+            "threshold": 1780,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "tpot_p95_ms",
+            "actual": 23.993065772468555,
+            "threshold": 35,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "e2e_p95_ms",
+            "actual": 1637.2644333168864,
+            "threshold": 2350,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "quality_goodput",
+            "actual": 4.978587761569776,
+            "threshold": 3.67,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "slo_attainment",
+            "actual": 0.9791666666666666,
+            "threshold": 0.95,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "success_rate",
+            "actual": 1.0,
+            "threshold": 0.99,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "quality_rate",
+            "actual": 0.9791666666666666,
+            "threshold": 0.99,
+            "comparison": ">=",
+            "passed": false
+          }
+        ]
+      },
+      {
+        "workload": "short",
+        "concurrency": 16,
+        "passed": true,
+        "metrics": [
+          {
+            "metric": "output_tokens_per_second",
+            "actual": 167.6703345556432,
+            "threshold": 128,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "ttft_p95_ms",
+            "actual": 1268.2959293015301,
+            "threshold": 1830,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "tpot_p95_ms",
+            "actual": 24.17845018755864,
+            "threshold": 40,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "e2e_p95_ms",
+            "actual": 1739.1105368733406,
+            "threshold": 2600,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "quality_goodput",
+            "actual": 9.250777078932039,
+            "threshold": 6.63,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "slo_attainment",
+            "actual": 1.0,
+            "threshold": 0.95,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "success_rate",
+            "actual": 1.0,
+            "threshold": 0.99,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "quality_rate",
+            "actual": 1.0,
+            "threshold": 0.99,
+            "comparison": ">=",
+            "passed": true
+          }
+        ]
+      },
+      {
+        "workload": "long",
+        "concurrency": 8,
+        "passed": true,
+        "metrics": [
+          {
+            "metric": "output_tokens_per_second",
+            "actual": 338.7996576360877,
+            "threshold": 254,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "ttft_p95_ms",
+            "actual": 1258.0058379098773,
+            "threshold": 1870,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "tpot_p95_ms",
+            "actual": 19.066065209487594,
+            "threshold": 29,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "e2e_p95_ms",
+            "actual": 5955.446043051779,
+            "threshold": 8900,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "quality_goodput",
+            "actual": 1.3539575028334203,
+            "threshold": 0.95,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "slo_attainment",
+            "actual": 1.0,
+            "threshold": 0.95,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "success_rate",
+            "actual": 1.0,
+            "threshold": 0.99,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "quality_rate",
+            "actual": 1.0,
+            "threshold": 0.99,
+            "comparison": ">=",
+            "passed": true
+          }
+        ]
+      },
+      {
+        "workload": "long",
+        "concurrency": 16,
+        "passed": true,
+        "metrics": [
+          {
+            "metric": "output_tokens_per_second",
+            "actual": 643.3665426525687,
+            "threshold": 485,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "ttft_p95_ms",
+            "actual": 1401.6708782874048,
+            "threshold": 2070,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "tpot_p95_ms",
+            "actual": 19.921723230268864,
+            "threshold": 30,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "e2e_p95_ms",
+            "actual": 6237.501036841422,
+            "threshold": 9350,
+            "comparison": "<=",
+            "passed": true
+          },
+          {
+            "metric": "quality_goodput",
+            "actual": 2.5704672921028213,
+            "threshold": 1.81,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "slo_attainment",
+            "actual": 1.0,
+            "threshold": 0.95,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "success_rate",
+            "actual": 1.0,
+            "threshold": 0.99,
+            "comparison": ">=",
+            "passed": true
+          },
+          {
+            "metric": "quality_rate",
+            "actual": 1.0,
+            "threshold": 0.99,
+            "comparison": ">=",
+            "passed": true
+          }
+        ]
+      }
+    ]
+  },
+  "performance_pending": false,
+  "automatic_evaluated_max": 95,
+  "pending_automatic_points": 0,
+  "acceptance_sha256": "ec19f6fe51c5781c6336a65dbd335fe073bc15ca7f0403f3b01e49e1d49e1868",
+  "hardware": "NVIDIA GeForce RTX 4090, GPU-12a220dc-9268-d2a6-16db-198a918e90d5, 580.178.04, 23028 MiB",
+  "engineering_probes": {
+    "overload": true,
+    "cancellation": true,
+    "recovery": true,
+    "counter_source": "service_declared",
+    "rows": [
+      {
+        "id": 0,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 291.2885141558945
+      },
+      {
+        "id": 1,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2535.6683898717165
+      },
+      {
+        "id": 2,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1636.5414899773896
+      },
+      {
+        "id": 3,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1102.5599879212677
+      },
+      {
+        "id": 4,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1629.1158287785947
+      },
+      {
+        "id": 5,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1605.0520651042461
+      },
+      {
+        "id": 6,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1598.6005240119994
+      },
+      {
+        "id": 7,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2296.6089518740773
+      },
+      {
+        "id": 8,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1103.3499618060887
+      },
+      {
+        "id": 9,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2295.4214429482818
+      },
+      {
+        "id": 10,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1448.2954647392035
+      },
+      {
+        "id": 11,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1495.7804339937866
+      },
+      {
+        "id": 12,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1623.5281620174646
+      },
+      {
+        "id": 13,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1524.4916891679168
+      },
+      {
+        "id": 14,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1653.4176911227405
+      },
+      {
+        "id": 15,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1632.3988428339362
+      },
+      {
+        "id": 16,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1455.831749830395
+      },
+      {
+        "id": 17,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2283.3962901495397
+      },
+      {
+        "id": 18,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1456.87703974545
+      },
+      {
+        "id": 19,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3079.8586988821626
+      },
+      {
+        "id": 20,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1645.6409441307187
+      },
+      {
+        "id": 21,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1654.118469916284
+      },
+      {
+        "id": 22,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1550.4668070934713
+      },
+      {
+        "id": 23,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1583.9017517864704
+      },
+      {
+        "id": 24,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1630.8043310418725
+      },
+      {
+        "id": 25,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1624.9547880142927
+      },
+      {
+        "id": 26,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1635.2368919178843
+      },
+      {
+        "id": 27,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1621.0523899644613
+      },
+      {
+        "id": 28,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2292.1922490932047
+      },
+      {
+        "id": 29,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1588.8628968968987
+      },
+      {
+        "id": 30,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2289.07638695091
+      },
+      {
+        "id": 31,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2276.218710001558
+      },
+      {
+        "id": 32,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1607.3729670606554
+      },
+      {
+        "id": 33,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2620.2741800807416
+      },
+      {
+        "id": 34,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1650.2331751398742
+      },
+      {
+        "id": 35,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1594.2526329308748
+      },
+      {
+        "id": 36,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2293.0255457758904
+      },
+      {
+        "id": 37,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2626.0659769177437
+      },
+      {
+        "id": 38,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1655.3768431767821
+      },
+      {
+        "id": 39,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2517.7830858156085
+      },
+      {
+        "id": 40,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1646.3510040193796
+      },
+      {
+        "id": 41,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1644.564283080399
+      },
+      {
+        "id": 42,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2859.5360037870705
+      },
+      {
+        "id": 43,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2285.397449042648
+      },
+      {
+        "id": 44,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3207.134156022221
+      },
+      {
+        "id": 45,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2621.2556827813387
+      },
+      {
+        "id": 46,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2294.4898610003293
+      },
+      {
+        "id": 47,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1660.2733079344034
+      },
+      {
+        "id": 48,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2630.0071738660336
+      },
+      {
+        "id": 49,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2860.245349816978
+      },
+      {
+        "id": 50,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 1652.5404709391296
+      },
+      {
+        "id": 51,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3337.918736040592
+      },
+      {
+        "id": 52,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2296.067320741713
+      },
+      {
+        "id": 53,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2623.554404824972
+      },
+      {
+        "id": 54,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2933.5161140188575
+      },
+      {
+        "id": 55,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2284.4982258975506
+      },
+      {
+        "id": 56,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2830.9194231405854
+      },
+      {
+        "id": 57,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3449.652448762208
+      },
+      {
+        "id": 58,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2619.4023680873215
+      },
+      {
+        "id": 59,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3166.570309083909
+      },
+      {
+        "id": 60,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3159.3899610452354
+      },
+      {
+        "id": 61,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3101.868067868054
+      },
+      {
+        "id": 62,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2848.358927760273
+      },
+      {
+        "id": 63,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3602.446438744664
+      },
+      {
+        "id": 64,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3109.8868339322507
+      },
+      {
+        "id": 65,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2926.6790887340903
+      },
+      {
+        "id": 66,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3361.903137061745
+      },
+      {
+        "id": 67,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3680.1155861467123
+      },
+      {
+        "id": 68,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2857.3617227375507
+      },
+      {
+        "id": 69,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3228.300951886922
+      },
+      {
+        "id": 70,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3156.6303111612797
+      },
+      {
+        "id": 71,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2864.2952158115804
+      },
+      {
+        "id": 72,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3086.072187870741
+      },
+      {
+        "id": 73,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3838.7046069838107
+      },
+      {
+        "id": 74,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3455.892357043922
+      },
+      {
+        "id": 75,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2871.9153767451644
+      },
+      {
+        "id": 76,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 2922.63473989442
+      },
+      {
+        "id": 77,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3172.849827911705
+      },
+      {
+        "id": 78,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3232.0560761727393
+      },
+      {
+        "id": 79,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3442.8295879624784
+      },
+      {
+        "id": 80,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3724.5172299444675
+      },
+      {
+        "id": 81,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3502.5862948969007
+      },
+      {
+        "id": 82,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3423.6235981807113
+      },
+      {
+        "id": 83,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3840.748655144125
+      },
+      {
+        "id": 84,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3503.4583578817546
+      },
+      {
+        "id": 85,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3903.329547960311
+      },
+      {
+        "id": 86,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3388.0009641870856
+      },
+      {
+        "id": 87,
+        "status": 429,
+        "cancelled_after_text": false,
+        "retry_after": true,
+        "response_ms": 2058.372626081109
+      },
+      {
+        "id": 88,
+        "status": 429,
+        "cancelled_after_text": false,
+        "retry_after": true,
+        "response_ms": 2045.6800530664623
+      },
+      {
+        "id": 89,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3388.9271998777986
+      },
+      {
+        "id": 90,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3784.506767988205
+      },
+      {
+        "id": 91,
+        "status": 429,
+        "cancelled_after_text": false,
+        "retry_after": true,
+        "response_ms": 2076.585141941905
+      },
+      {
+        "id": 92,
+        "status": 429,
+        "cancelled_after_text": false,
+        "retry_after": true,
+        "response_ms": 2074.9901169911027
+      },
+      {
+        "id": 93,
+        "status": 429,
+        "cancelled_after_text": false,
+        "retry_after": true,
+        "response_ms": 2077.9197881929576
+      },
+      {
+        "id": 94,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3684.7788910381496
+      },
+      {
+        "id": 95,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3840.190320741385
+      },
+      {
+        "id": 96,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3521.302062086761
+      },
+      {
+        "id": 97,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3643.17738218233
+      },
+      {
+        "id": 98,
+        "status": 429,
+        "cancelled_after_text": false,
+        "retry_after": true,
+        "response_ms": 2079.618778079748
+      },
+      {
+        "id": 99,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3555.1913660019636
+      },
+      {
+        "id": 100,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3715.598396025598
+      },
+      {
+        "id": 101,
+        "status": 429,
+        "cancelled_after_text": false,
+        "retry_after": true,
+        "response_ms": 2069.43243695423
+      },
+      {
+        "id": 102,
+        "status": 200,
+        "cancelled_after_text": true,
+        "retry_after": false,
+        "response_ms": 3746.4542789384723
+      },
+      {
+        "id": 103,
+        "status": 429,
+        "cancelled_after_text": false,
+        "retry_after": true,
+        "response_ms": 2059.2438080348074
+      }
+    ],
+    "detail": [
+      "8 prompt429; drained=True; recovery=True."
+    ],
+    "observed_closed_streams": 96,
+    "declared_abort_delta": 96,
+    "recovery_request": {
+      "id": "post-cancel-recovery",
+      "workload_id": "short-0",
+      "input_tokens": 512,
+      "ok": true,
+      "quality_pass": true,
+      "error": null,
+      "status": 200,
+      "output_tokens": 18,
+      "declared_output_tokens": 19,
+      "ttft_ms": 252.2099418565631,
+      "tpot_ms": 17.471769934191425,
+      "event_gap_p95_ms": 19.818108063191175,
+      "content_events": 18,
+      "token_count_source": "controller_retokenized_visible_text",
+      "response_format": {
+        "type": "json_object"
+      },
+      "e2e_ms": 578.1097030267119,
+      "text": "{\"id\":68590,\"city\":\"Boston\",\"units\":51}"
+    }
+  },
+  "final_service_checks": {
+    "profile": "optimized",
+    "ready": true,
+    "attempted": 384,
+    "streamed": true,
+    "success_rate": 1.0,
+    "quality_rate": 0.9973958333333334,
+    "api_points": 5.0,
+    "quality_points": 5
+  },
+  "elapsed_seconds": 2410.363414888736
+}

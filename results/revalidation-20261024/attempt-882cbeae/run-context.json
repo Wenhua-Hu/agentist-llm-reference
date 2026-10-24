@@ -1,0 +1,11 @@
+{
+  "run_id": "882cbeae-6192-444a-84d5-dd78950a73f7",
+  "instance_id": "d85132d6-a216-4cf7-8c76-7354906fe63a",
+  "provider": "daytona",
+  "commit_sha": "9ebf07bbc62b21eb061c311b6b3b9c2c63bc0582",
+  "created_at": "2026-10-24T20:24:44.546183+00:00",
+  "ready_at": "2026-10-24T20:25:17.031644+00:00",
+  "snapshot": "agentist-llm-base-4090-20261017-v1",
+  "snapshot_source": "owned_instance_label",
+  "grading_environment": "staging"
+}
