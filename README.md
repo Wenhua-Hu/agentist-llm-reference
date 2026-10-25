@@ -4,7 +4,7 @@
 
 ## 当前参考版本与评分
 
-请使用 [codex/credential-service-v5 分支](https://github.com/mrvgao/agentist-llm-reference/tree/codex/credential-service-v5)，默认分支仍是旧实现。正式复现再 checkout 平台任务书指定的完整 commit；不要把分支后续变化混入已固定的评测。
+仓库默认分支 `codex/reference` 已包含最新参考实现，直接打开仓库首页或使用下面的 `git clone` 命令即可获取。正式复现再 checkout 平台任务书指定的完整 commit；不要把分支后续变化混入已固定的评测。
 
 评分版本 `llm-lab/5.0` 共十项：重建 5、API 5、正确性 5、性能 30、Agent 5、KV 10、prefix 10、attention 10、多用户凭据/计费/配额 15，以及人工解释 5。管理服务的密钥生命周期、用量计费、配额恢复三组各 5 分，须同时满足 CPU 独立测试与真实 optimized SGLang 部署门槛；公开自测不能上传为成绩。完整 [评分细则与 15 项管理协议](docs/autograding.md) 说明每项通过、失败与未执行规则。
 
@@ -42,7 +42,7 @@ evaluate LLM-server --formal --repo <owner/repo> --commit <完整40位SHA>
 Triton / FlashInfer 即使已安装 wheel，也可能在第一次推理时 JIT 编译 Python 扩展，因此必须具备匹配解释器版本的 `Python.h` 和 C/C++ 编译工具。setup 只使用系统已有的官方 Ubuntu 软件源安装这些依赖，保留签名验证并跳过无关 CUDA 第三方源；网络超时 20 秒、重试 1 次，update/install 总时限分别为 180/240 秒。安装进度会显示在评测终端，失败会返回非零，避免网络问题无限占用 GPU。直接调用 `.venv/bin/python` 不会自动激活 PATH；setup 和实验入口会显式加入实际引擎解释器的 bin、网关 venv/bin 和 CUDA_HOME/bin，并检查 cc/c++、ninja、nvcc。工具链路径记录在 `.runtime/runtime.json`，无需手动 source activate。
 
 ```bash
-git clone --branch codex/credential-service-v5 https://github.com/mrvgao/agentist-llm-reference.git
+git clone https://github.com/mrvgao/agentist-llm-reference.git
 cd agentist-llm-reference
 export HOST=127.0.0.1 PORT=8000
 export API_KEY="$(openssl rand -hex 32)"
